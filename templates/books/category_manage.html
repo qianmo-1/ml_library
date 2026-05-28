@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}分类管理{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="page-title mb-0">分类管理</h4>
+    <button type="button" class="btn btn-success" id="addCategoryBtn">
+        <i class="bi bi-plus-lg me-1"></i>新增分类
+    </button>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>分类名称</th>
+                    <th>描述</th>
+                    <th>图书数量</th>
+                    <th>创建时间</th>
+                    <th style="width: 140px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categories %}
+                <tr>
+                    <td>
+                        <span class="fw-semibold">{{ cat.name }}</span>
+                    </td>
+                    <td>
+                        {% if cat.description %}
+                        <span class="text-muted">{{ cat.description }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-primary">{{ cat.book_count }}</span>
+                    </td>
+                    <td>{{ cat.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-outline-primary btn-sm edit-category-btn"
+                                data-cat-id="{{ cat.id }}"
+                                data-cat-name="{{ cat.name }}"
+                                data-cat-desc="{{ cat.description|default:'' }}"
+                                title="编辑">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm delete-category-btn"
+                                data-cat-id="{{ cat.id }}"
+                                data-cat-name="{{ cat.name }}"
+                                data-book-count="{{ cat.book_count }}"
+                                title="删除">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h5>暂无分类</h5>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalTitle">新增分类</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="categoryForm" novalidate>
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="catId" name="cat_id" value="">
+                    <div class="mb-3">
+                        <label for="catName" class="form-label">分类名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="catName" name="name" placeholder="请输入分类名称" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="catDesc" class="form-label">描述</label>
+                        <textarea class="form-control" id="catDesc" name="description" rows="3" placeholder="请输入分类描述"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary" id="categorySubmitBtn">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteCatModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteCatMessage">确定要删除该分类吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteCatBtn">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    var isEditMode = false;
+    var deleteCatId = null;
+
+    $('#addCategoryBtn').on('click', function() {
+        isEditMode = false;
+        $('#categoryModalTitle').text('新增分类');
+        $('#catId').val('');
+        $('#catName').val('');
+        $('#catDesc').val('');
+        $('#categorySubmitBtn').text('保存');
+        $('#categoryModal').modal('show');
+    });
+
+    $('.edit-category-btn').on('click', function() {
+        isEditMode = true;
+        var catId = $(this).data('cat-id');
+        var catName = $(this).data('cat-name');
+        var catDesc = $(this).data('cat-desc');
+
+        $('#categoryModalTitle').text('编辑分类');
+        $('#catId').val(catId);
+        $('#catName').val(catName);
+        $('#catDesc').val(catDesc);
+        $('#categorySubmitBtn').text('保存修改');
+        $('#categoryModal').modal('show');
+    });
+
+    $('#categoryForm').on('submit', function(e) {
+        e.preventDefault();
+
+        var name = $('#catName').val().trim();
+        if (!name) {
+            showToast('请输入分类名称', 'warning');
+            $('#catName').focus();
+            return;
+        }
+
+        var btn = $('#categorySubmitBtn');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>保存中...');
+
+        var catId = $('#catId').val();
+        var url, data;
+
+        if (isEditMode && catId) {
+            url = '/books/category/edit/' + catId + '/';
+            data = {
+                name: name,
+                description: $('#catDesc').val().trim(),
+                csrfmiddlewaretoken: csrftoken
+            };
+        } else {
+            url = '{% url "category_add" %}';
+            data = {
+                name: name,
+                description: $('#catDesc').val().trim(),
+                csrfmiddlewaretoken: csrftoken
+            };
+        }
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: data,
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast(response.msg || '操作成功', 'success');
+                    $('#categoryModal').modal('hide');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '操作失败', 'error');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try {
+                    var res = JSON.parse(xhr.responseText);
+                    message = res.msg || message;
+                } catch(e) {}
+                showToast(message, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html(isEditMode ? '保存修改' : '保存');
+            }
+        });
+    });
+
+    $('.delete-category-btn').on('click', function() {
+        deleteCatId = $(this).data('cat-id');
+        var catName = $(this).data('cat-name');
+        var bookCount = $(this).data('book-count');
+
+        if (bookCount > 0) {
+            showToast('该分类下有 ' + bookCount + ' 本图书，无法删除', 'warning');
+            return;
+        }
+        $('#deleteCatMessage').text('确定要删除分类「' + catName + '」吗？');
+        $('#deleteCatModal').modal('show');
+    });
+
+    $('#confirmDeleteCatBtn').on('click', function() {
+        if (!deleteCatId) return;
+
+        var btn = $('#confirmDeleteCatBtn');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>删除中...');
+
+        $.ajax({
+            url: '/books/category/delete/' + deleteCatId + '/',
+            type: 'POST',
+            data: {
+                csrfmiddlewaretoken: csrftoken
+            },
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('删除成功', 'success');
+                    $('#deleteCatModal').modal('hide');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '删除失败', 'error');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try {
+                    var res = JSON.parse(xhr.responseText);
+                    message = res.msg || message;
+                } catch(e) {}
+                showToast(message, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('确认删除');
+            }
+        });
+    });
+
+    $('#categoryModal').on('hidden.bs.modal', function() {
+        $('#categoryForm')[0].reset();
+        $('#categorySubmitBtn').prop('disabled', false).html('保存');
+    });
+});
+</script>
+{% endblock %}

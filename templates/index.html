@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}NOVA·图书馆 - 探索知识宇宙{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero-section {
+    position: relative;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin: -1.5rem -2rem 2rem -2rem;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+}
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(0,240,255,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 30%, rgba(255,0,255,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(0,255,65,0.04) 0%, transparent 50%);
+}
+.hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridMove 20s linear infinite;
+}
+@keyframes gridMove { from{transform:translateY(0)} to{transform:translateY(-60px)} }
+.hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 2rem;
+}
+.hero-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 3.5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #00f0ff 0%, #ff00ff 50%, #00f0ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    letter-spacing: 0.05em;
+    animation: titlePulse 3s ease-in-out infinite;
+    margin-bottom: 0.5rem;
+}
+@keyframes titlePulse {
+    0%,100%{filter:brightness(1)}
+    50%{filter:brightness(1.3)}
+}
+.hero-subtitle {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    color: rgba(0,240,255,0.7);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+}
+.hero-search {
+    max-width: 600px;
+    margin: 0 auto;
+}
+.hero-search .input-group {
+    background: rgba(10,10,30,0.9);
+    border: 1px solid rgba(0,240,255,0.3);
+    border-radius: 50px;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0,240,255,0.1);
+}
+.hero-search .form-control {
+    background: transparent;
+    border: none;
+    color: #00f0ff;
+    padding: 0.9rem 1.5rem;
+    font-size: 1rem;
+}
+.hero-search .form-control::placeholder { color: rgba(0,240,255,0.3); }
+.hero-search .btn {
+    background: linear-gradient(135deg, #00f0ff, #0088ff);
+    border: none;
+    color: #0a0a1a;
+    font-weight: 700;
+    padding: 0.9rem 2rem;
+    border-radius: 0 50px 50px 0;
+    letter-spacing: 0.05em;
+}
+.hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+.hero-stat {
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.3s;
+    cursor: pointer;
+    padding: 0.5rem 1.5rem;
+    border-radius: 14px;
+}
+.hero-stat:hover {
+    background: rgba(0,240,255,0.06);
+    transform: translateY(-3px);
+    box-shadow: 0 0 20px rgba(0,240,255,0.12);
+}
+.hero-stat .stat-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #00f0ff;
+    text-shadow: 0 0 20px rgba(0,240,255,0.5);
+    display: block;
+}
+.hero-stat .stat-unit {
+    font-size: 0.72rem;
+    color: rgba(0,240,255,0.5);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.section-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #00f0ff;
+    text-shadow: 0 0 15px rgba(0,240,255,0.3);
+    letter-spacing: 0.08em;
+    margin-bottom: 1.5rem;
+    padding-left: 1rem;
+    border-left: 3px solid #00f0ff;
+}
+
+.book-grid { margin-bottom: 2rem; }
+
+.feature-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+.feature-card {
+    background: rgba(10,15,30,0.8);
+    border: 1px solid rgba(0,240,255,0.1);
+    border-radius: 14px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+}
+.feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.feature-card:hover::before { opacity: 1; }
+.feature-card:hover {
+    border-color: rgba(0,240,255,0.3);
+    box-shadow: 0 0 30px rgba(0,240,255,0.1);
+    transform: translateY(-3px);
+}
+.feature-card .feat-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+.feature-card h6 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.82rem;
+    color: #00f0ff;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+}
+.feature-card p {
+    font-size: 0.75rem;
+    color: rgba(200,210,220,0.6);
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .hero-title { font-size: 2rem; }
+    .hero-stats { gap: 1.5rem; }
+    .hero-stat .stat-num { font-size: 1.3rem; }
+    .hero-section { min-height: 300px; margin: -1rem -1rem 1.5rem -1rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+        <h1 class="hero-title">NOVA·图书馆</h1>
+        <p class="hero-subtitle">探索知识宇宙 · 畅游智慧星河</p>
+        <div class="hero-search">
+            <form method="get" action="{% url 'book_list' %}">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="搜索书名 / 作者 / ISBN ..." value="{{ search_query }}">
+                    <button class="btn" type="submit"><i class="bi bi-search me-1"></i> 检索</button>
+                </div>
+            </form>
+        </div>
+        <div class="hero-stats">
+            <a href="{% url 'book_list' %}" class="hero-stat">
+                <span class="stat-num">{{ total_books }}</span>
+                <span class="stat-unit">馆藏图书</span>
+            </a>
+            {% if user.is_authenticated and user.role == 'admin' %}
+            <a href="{% url 'manage_users' %}" class="hero-stat">
+            {% else %}
+            <span class="hero-stat">
+            {% endif %}
+                <span class="stat-num">{{ total_users }}</span>
+                <span class="stat-unit">注册用户</span>
+            {% if user.is_authenticated and user.role == 'admin' %}
+            </a>
+            {% else %}
+            </span>
+            {% endif %}
+            <a href="{% url 'book_list' %}" class="hero-stat">
+                <span class="stat-num">{{ categories|length }}</span>
+                <span class="stat-unit">知识门类</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="feature-row">
+    <a href="{% url 'book_list' %}" class="feature-card">
+        <span class="feat-icon">⚡</span>
+        <h6>极速检索</h6>
+        <p>多条件模糊搜索，毫秒级响应</p>
+    </a>
+    {% if user.is_authenticated and user.role != 'admin' %}
+    <a href="{% url 'my_borrows' %}" class="feature-card">
+    {% else %}
+    <a href="{% url 'book_list' %}" class="feature-card">
+    {% endif %}
+        <span class="feat-icon">📡</span>
+        <h6>云端借阅</h6>
+        <p>在线借还，实时同步库存</p>
+    </a>
+    {% if user.is_authenticated %}
+    <a href="{% url 'profile' %}" class="feature-card">
+    {% else %}
+    <a href="{% url 'register' %}" class="feature-card">
+    {% endif %}
+        <span class="feat-icon">🛡️</span>
+        <h6>安全可靠</h6>
+        <p>数据加密存储，权限隔离</p>
+    </a>
+    {% if user.is_authenticated and user.role == 'admin' %}
+    <a href="{% url 'stats_dashboard' %}" class="feature-card">
+    {% else %}
+    <a href="{% url 'book_list' %}" class="feature-card">
+    {% endif %}
+        <span class="feat-icon">📊</span>
+        <h6>智能统计</h6>
+        <p>可视化报表，数据洞察</p>
+    </a>
+</div>
+
+<div class="section-title">
+    <i class="bi bi-fire me-2" style="color:#ff00ff;"></i>热门推荐
+</div>
+<div class="row book-grid">
+    {% for book in hot_books %}
+    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4">
+        <div class="book-card-sci">
+            <div class="book-cover-wrap">
+                {% if book.cover %}
+                <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="book-cover-img">
+                {% else %}
+                <div class="book-cover-img book-cover-placeholder"><i class="bi bi-book" style="font-size:3rem;color:rgba(0,240,255,0.2);"></i></div>
+                {% endif %}
+                <div class="book-cover-overlay">
+                    <a href="{% url 'book_detail' book.id %}" class="btn btn-outline-sci btn-sm">
+                        <i class="bi bi-eye me-1"></i>查看详情
+                    </a>
+                    <button type="button" class="btn btn-outline-sci btn-sm quick-preview-btn"
+                            data-cover="{% if book.cover %}{{ book.cover.url }}{% endif %}"
+                            data-title="{{ book.title }}"
+                            data-author="{{ book.author }}"
+                            data-stock="{{ book.current_stock }}"
+                            data-total="{{ book.total_stock }}"
+                            data-borrows="{{ book.borrow_count }}">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                </div>
+                <div class="book-status-bar">
+                    <span class="status-indicator {% if book.current_stock > 0 %}online{% else %}offline{% endif %}"></span>
+                    <span style="font-size:0.7rem;">库存: {{ book.current_stock }}</span>
+                </div>
+            </div>
+            <div class="book-info-sci">
+                <h6 class="book-title-sci">{{ book.title }}</h6>
+                <p class="book-author-sci">{{ book.author }}</p>
+                <div class="book-tags">
+                    {% if book.category %}<span class="tag">{{ book.category.name }}</span>{% endif %}
+                    <span class="tag count">借阅 {{ book.borrow_count }} 次</span>
+                </div>
+                {% if user.is_authenticated and book.current_stock > 0 %}
+                <button class="btn btn-borrow-sci borrow-btn" data-book-id="{{ book.id }}" data-book-title="{{ book.title }}">
+                    <i class="bi bi-download me-1"></i>借阅
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <h5>暂无图书</h5>
+        <p>知识宇宙正在构建中...</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="section-title">
+    <i class="bi bi-star-fill me-2" style="color:#00f0ff;"></i>最新上架
+</div>
+<div class="row book-grid">
+    {% for book in books|slice:":4" %}
+    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4">
+        <div class="book-card-sci">
+            <div class="book-cover-wrap">
+                {% if book.cover %}
+                <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="book-cover-img">
+                {% else %}
+                <div class="book-cover-img book-cover-placeholder"><i class="bi bi-book" style="font-size:3rem;color:rgba(0,240,255,0.2);"></i></div>
+                {% endif %}
+                <div class="book-cover-overlay">
+                    <a href="{% url 'book_detail' book.id %}" class="btn btn-outline-sci btn-sm">
+                        <i class="bi bi-eye me-1"></i>查看详情
+                    </a>
+                    <button type="button" class="btn btn-outline-sci btn-sm quick-preview-btn"
+                            data-cover="{% if book.cover %}{{ book.cover.url }}{% endif %}"
+                            data-title="{{ book.title }}"
+                            data-author="{{ book.author }}"
+                            data-stock="{{ book.current_stock }}"
+                            data-total="{{ book.total_stock }}"
+                            data-borrows="{{ book.borrow_count }}">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                </div>
+                <div class="book-status-bar">
+                    <span class="status-indicator {% if book.current_stock > 0 %}online{% else %}offline{% endif %}"></span>
+                    <span style="font-size:0.7rem;">库存: {{ book.current_stock }}</span>
+                </div>
+            </div>
+            <div class="book-info-sci">
+                <h6 class="book-title-sci">{{ book.title }}</h6>
+                <p class="book-author-sci">{{ book.author }}</p>
+                <div class="book-tags">
+                    {% if book.category %}<span class="tag">{{ book.category.name }}</span>{% endif %}
+                    <span class="tag count">借阅 {{ book.borrow_count }} 次</span>
+                </div>
+                {% if user.is_authenticated and book.current_stock > 0 %}
+                <button class="btn btn-borrow-sci borrow-btn" data-book-id="{{ book.id }}" data-book-title="{{ book.title }}">
+                    <i class="bi bi-download me-1"></i>借阅
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="bi bi-journal-plus"></i>
+        <h5>暂无新书</h5>
+        <p>新书正在星际运输中...</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="text-center mt-4">
+    <a href="{% url 'book_list' %}" class="btn btn-sci-more">
+        浏览全部藏书 <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+</div>
+
+<div class="modal fade" id="quickPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-preview-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>快速预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="preview-layout">
+                    <div class="preview-cover-section" style="min-height:300px;">
+                        <img id="qpCoverIndex" src="" alt="" style="max-height:320px;">
+                    </div>
+                    <div class="preview-info-section">
+                        <h3 id="qpTitleIndex"></h3>
+                        <div class="preview-meta">
+                            <span id="qpAuthorIndex" class="badge badge-primary"></span>
+                        </div>
+                        <div class="preview-stat-row">
+                            <div class="preview-stat">
+                                <div class="ps-val" id="qpStockIndex">-</div>
+                                <div class="ps-lbl">在馆可借</div>
+                            </div>
+                            <div class="preview-stat">
+                                <div class="ps-val" id="qpTotalIndex">-</div>
+                                <div class="ps-lbl">总库存</div>
+                            </div>
+                            <div class="preview-stat">
+                                <div class="ps-val" id="qpBorrowsIndex">-</div>
+                                <div class="ps-lbl">累计借阅</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+    $('#quickPreviewModal').on('show.bs.modal', function(e) {
+        var btn = $(e.relatedTarget);
+        var cover = btn.data('cover');
+        var title = btn.data('title');
+        var author = btn.data('author');
+        var stock = btn.data('stock');
+        var total = btn.data('total');
+        var borrows = btn.data('borrows');
+
+        if (cover) {
+            $('#qpCoverIndex').attr('src', cover).show();
+        } else {
+            $('#qpCoverIndex').hide();
+        }
+        $('#qpTitleIndex').text(title);
+        $('#qpAuthorIndex').text(author);
+        $('#qpStockIndex').text(stock || '-');
+        $('#qpTotalIndex').text(total || '-');
+        $('#qpBorrowsIndex').text(borrows || '-');
+    });
+
+    $('.borrow-btn').on('click',function(){
+        var btn=$(this),id=btn.data('book-id'),title=btn.data('book-title');
+        btn.prop('disabled',true).html('<span class="spinner-border spinner-border-sm me-1"></span>处理中...');
+        $.ajax({
+            url:'/borrow/borrow/'+id+'/',type:'POST',data:{book_id:id,csrfmiddlewaretoken:csrftoken},
+            success:function(r){
+                if(r.code===200){showToast('《'+title+'》借阅成功！','success');setTimeout(function(){location.reload();},1500);}
+                else{showToast(r.msg||'借阅失败','error');btn.prop('disabled',false).html('<i class="bi bi-download me-1"></i>借阅');}
+            },
+            error:function(xhr){
+                var m='服务器错误';try{var r=JSON.parse(xhr.responseText);m=r.msg||m;}catch(e){}
+                showToast(m,'error');btn.prop('disabled',false).html('<i class="bi bi-download me-1"></i>借阅');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

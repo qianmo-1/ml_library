@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}借阅管理{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="page-title mb-0">借阅管理</h4>
+    <button type="button" id="overdueCheckBtn" class="btn btn-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>逾期检查
+    </button>
+</div>
+
+<div class="search-bar">
+    <form method="get" action="{% url 'borrow_manage' %}" class="row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">搜索</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" name="q" placeholder="输入用户名或书名..." value="{{ q|default:'' }}">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">状态筛选</label>
+            <select class="form-select" name="status">
+                <option value="">全部</option>
+                <option value="borrowing" {% if status_filter == 'borrowing' %}selected{% endif %}>借阅中</option>
+                <option value="returned" {% if status_filter == 'returned' %}selected{% endif %}>已归还</option>
+                <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>已逾期</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-search me-1"></i>搜索
+            </button>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'borrow_manage' %}" class="btn btn-outline-secondary w-100">
+                <i class="bi bi-arrow-clockwise me-1"></i>重置
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>编号</th>
+                    <th>用户名</th>
+                    <th>书名</th>
+                    <th>借阅日期</th>
+                    <th>应还日期</th>
+                    <th>归还日期</th>
+                    <th>状态</th>
+                    <th>续借次数</th>
+                    <th>罚款</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr class="{% if record.is_overdue_display %}table-danger{% endif %}">
+                    <td>{{ record.id }}</td>
+                    <td>{{ record.user.username }}</td>
+                    <td>{{ record.book.title }}</td>
+                    <td>{{ record.borrow_date|date:"Y-m-d H:i" }}</td>
+                    <td>{{ record.due_date|date:"Y-m-d H:i" }}</td>
+                    <td>{{ record.return_date|date:"Y-m-d H:i"|default:"-" }}</td>
+                    <td>
+                        {% if record.status == 'borrowing' %}
+                        <span class="status-dot active"></span>
+                        <span class="badge badge-info">借阅中</span>
+                        {% elif record.status == 'returned' %}
+                        <span class="status-dot active"></span>
+                        <span class="badge badge-success">已归还</span>
+                        {% elif record.status == 'overdue' %}
+                        <span class="status-dot danger"></span>
+                        <span class="badge badge-danger">已逾期</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ record.renew_count }}</td>
+                    <td>¥{{ record.fine_amount|floatformat:2 }}</td>
+                    <td>
+                        {% if record.status != 'returned' and user.role == 'admin' %}
+                        <button type="button" class="btn btn-outline-success btn-sm confirm-return-btn" data-record-id="{{ record.id }}" data-book-title="{{ record.book.title }}">
+                            <i class="bi bi-check-circle me-1"></i>确认归还
+                        </button>
+                        {% endif %}
+                        {% if record.fine_amount > 0 and not record.is_paid %}
+                        <button type="button" class="btn btn-outline-warning btn-sm pay-fine-btn" data-record-id="{{ record.id }}" data-amount="{{ record.fine_amount|floatformat:2 }}">
+                            <i class="bi bi-cash-coin me-1"></i>缴纳罚款
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h5>暂无借阅记录</h5>
+                            <p>借阅记录将在此处显示</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if records.has_other_pages %}
+<nav aria-label="借阅管理分页" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if records.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ records.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+        </li>
+        {% endif %}
+
+        {% for num in records.paginator.page_range %}
+            {% if records.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > records.number|add:'-3' and num < records.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        {% if records.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ records.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.confirm-return-btn').on('click', function() {
+        var btn = $(this);
+        var recordId = btn.data('record-id');
+        var bookTitle = btn.data('book-title');
+
+        if (!confirm('确定要确认归还《' + bookTitle + '》吗？')) return;
+
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>处理中...');
+
+        $.ajax({
+            url: '/borrow/confirm-return/' + recordId + '/',
+            type: 'POST',
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('《' + bookTitle + '》归还确认成功', 'success');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '归还确认失败', 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>确认归还');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>确认归还');
+            }
+        });
+    });
+
+    $('#overdueCheckBtn').on('click', function() {
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>检查中...');
+
+        $.ajax({
+            url: '{% url "overdue_check" %}',
+            type: 'GET',
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast(response.msg || '逾期检查完成', 'success');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '逾期检查失败', 'error');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="bi bi-exclamation-triangle me-1"></i>逾期检查');
+            }
+        });
+    });
+
+    $('.pay-fine-btn').on('click', function() {
+        var btn = $(this);
+        var recordId = btn.data('record-id');
+        var amount = btn.data('amount');
+
+        if (!confirm('确定要缴纳罚款 ¥' + amount + ' 吗？')) return;
+
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>处理中...');
+
+        $.ajax({
+            url: '/borrow/pay-fine/' + recordId + '/',
+            type: 'POST',
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('罚款缴纳成功', 'success');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '缴纳罚款失败', 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-cash-coin me-1"></i>缴纳罚款');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-cash-coin me-1"></i>缴纳罚款');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

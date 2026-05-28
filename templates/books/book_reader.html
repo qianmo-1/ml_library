@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body_class %}reader-page{% endblock %}
+
+{% block body_content %}
+<div class="reader-app">
+    <div class="reader-sidebar" id="readerSidebar">
+        <div class="reader-sidebar-hdr">
+            <a href="{% url 'book_detail' book.id %}" class="reader-back-link">
+                <i class="bi bi-arrow-left"></i> 返回详情
+            </a>
+            <button class="reader-sidebar-close" onclick="window._reader.toggleSidebar()" title="收起目录">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="reader-sidebar-title">目 录</div>
+        <nav class="reader-toc" id="readerToc">
+            {% for item in toc_list %}
+            <a class="reader-toc-link {% if not item.1 %}reader-toc-section{% endif %}"
+               {% if item.1 %}href="javascript:void(0)" onclick="window._reader.go({{ forloop.counter0 }})"{% endif %}
+               title="{% if item.1 %}点击阅读「{{ item.0 }}」{% endif %}">
+                <span class="reader-toc-text">{{ item.0 }}</span>
+                {% if item.1 %}
+                <span class="reader-toc-dot"><i class="bi bi-chevron-right"></i></span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <div class="reader-main">
+        <div class="reader-topbar">
+            <button class="reader-menu-btn" onclick="window._reader.toggleSidebar()" title="目录">
+                <i class="bi bi-list"></i>
+            </button>
+            <a href="{% url 'book_detail' book.id %}" class="reader-book-title-link">
+                <i class="bi bi-book me-2"></i>{{ book.title }}
+            </a>
+            <span class="reader-chapter-label" id="readerChapterLabel">{{ first_title }}</span>
+            <div class="reader-topbar-right">
+                <button class="reader-font-btn" onclick="window._reader.fontDown()" title="缩小字号">A<small>-</small></button>
+                <span class="reader-font-indicator" id="fontSizeLabel">18</span>
+                <button class="reader-font-btn" onclick="window._reader.fontUp()" title="放大字号">A<small>+</small></button>
+                <span class="reader-progress-badge" id="readerProgress">{% if chapter_count > 0 %}1 / {{ chapter_count }}{% else %}-{% endif %}</span>
+            </div>
+        </div>
+
+        <div class="reader-content-wrap">
+            <div class="reader-content" id="readerContent">
+                {% if first_content %}
+                {% for line in first_content.splitlines %}
+                {% with trimmed=line.strip %}
+                {% if trimmed %}
+                <p>{{ trimmed }}</p>
+                {% endif %}
+                {% endwith %}
+                {% endfor %}
+                {% else %}
+                <div class="reader-empty">
+                    <i class="bi bi-journal-text"></i>
+                    <p>暂未收录章节内容</p>
+                    <p class="text-muted" style="font-size:0.8rem;">请关注后续更新</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="reader-bottombar">
+            <button class="reader-nav-btn" id="rbPrev"
+                    onclick="window._reader.go(window._reader.prevIdx())"
+                    {% if chapter_count <= 1 or start_chapter == 0 %}disabled{% endif %}>
+                <i class="bi bi-chevron-left"></i> 上一章
+            </button>
+            <button class="reader-nav-btn reader-back-btn" onclick="location.href='{% url 'book_detail' book.id %}'">
+                <i class="bi bi-book"></i> 返回图书
+            </button>
+            <button class="reader-nav-btn" id="rbNext"
+                    onclick="window._reader.go(window._reader.nextIdx())"
+                    {% if chapter_count <= 1 %}disabled{% endif %}>
+                下一章 <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var $ = window.jQuery || function(s) { return document.querySelector(s); };
+
+    var R = {
+        bookId: {{ book.id }},
+        totalChapters: {{ chapter_count }},
+        currentIdx: {{ start_chapter }},
+        cache: {},
+        meta: {},
+        fontSize: 18,
+
+        init: function() {
+            var self = this;
+            try { var s = localStorage.getItem('reader_font_size'); if (s) self.fontSize = parseInt(s) || 18; } catch(e) {}
+            self.applyFontSize();
+
+            if (self.totalChapters === 0) return;
+
+            var firstTitle = '{{ first_title|escapejs }}';
+            var isFirst = (self.currentIdx === 0);
+
+            if (!isFirst) {
+                self.load(self.currentIdx);
+            } else {
+                self.highlightToc(0);
+                self.meta = {
+                    title: firstTitle,
+                    prevIdx: null,
+                    nextIdx: self.totalChapters > 1 ? 1 : null
+                };
+                self.updateButtons();
+            }
+
+            if ($(window).width() >= 1200) {
+                var sb = document.getElementById('readerSidebar');
+                if (sb) sb.classList.add('open');
+            }
+
+            document.addEventListener('keydown', function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+                if (e.key === 'ArrowLeft') { e.preventDefault(); self.go(self.prevIdx()); }
+                else if (e.key === 'ArrowRight') { e.preventDefault(); self.go(self.nextIdx()); }
+            });
+        },
+
+        go: function(idx) {
+            if (idx === null || idx < 0 || idx >= this.totalChapters) return;
+            this.currentIdx = idx;
+            this.load(idx);
+        },
+
+        prevIdx: function() { return this.meta.prevIdx; },
+        nextIdx: function() { return this.meta.nextIdx; },
+
+        load: function(idx) {
+            var self = this;
+            if (self.cache[idx]) {
+                self.render(self.cache[idx].content, self.cache[idx].title, self.cache[idx].prevIdx, self.cache[idx].nextIdx);
+                return;
+            }
+            var el = document.getElementById('readerContent');
+            if (el) el.innerHTML = '<div class="reader-loading"><div class="spinner-border" style="color:var(--cyan);"></div><p>正在加载章节...</p></div>';
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/books/chapter/' + self.bookId + '/' + idx + '/');
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        var res = JSON.parse(xhr.responseText);
+                        if (res.code === 200) {
+                            var d = res.data;
+                            var p = d.prev ? d.prev.index : null;
+                            var n = d.next ? d.next.index : null;
+                            self.cache[idx] = { content: d.content, title: d.chapter_title, prevIdx: p, nextIdx: n };
+                            self.render(d.content, d.chapter_title, p, n);
+                            return;
+                        }
+                    } catch(e) {}
+                }
+                if (el) el.innerHTML = '<div class="reader-error"><i class="bi bi-journal-x"></i><p>章节加载失败</p><button class="reader-retry-btn" onclick="window._reader.load(' + idx + ')">重试</button></div>';
+            };
+            xhr.onerror = function() {
+                if (el) el.innerHTML = '<div class="reader-error"><i class="bi bi-wifi-off"></i><p>网络错误</p><button class="reader-retry-btn" onclick="window._reader.load(' + idx + ')">重试</button></div>';
+            };
+            xhr.send();
+        },
+
+        render: function(contentStr, title, prevIdx, nextIdx) {
+            var lines = contentStr.split('\n');
+            var html = '';
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (line) html += '<p>' + line + '</p>';
+            }
+            var el = document.getElementById('readerContent');
+            if (el) { el.innerHTML = html; el.scrollTop = 0; }
+
+            this.meta = { title: title, prevIdx: prevIdx, nextIdx: nextIdx };
+            this.highlightToc(this.currentIdx);
+            this.updateButtons();
+
+            var lbl = document.getElementById('readerChapterLabel');
+            if (lbl) lbl.textContent = title || '';
+            var prog = document.getElementById('readerProgress');
+            if (prog) prog.textContent = (this.currentIdx + 1) + ' / ' + this.totalChapters;
+
+            try { window.history.replaceState(null, '', location.pathname + '?chapter=' + this.currentIdx); } catch(e) {}
+        },
+
+        updateButtons: function() {
+            var prevBtn = document.getElementById('rbPrev');
+            var nextBtn = document.getElementById('rbNext');
+            if (prevBtn) prevBtn.disabled = (this.meta.prevIdx === null || this.meta.prevIdx === undefined);
+            if (nextBtn) nextBtn.disabled = (this.meta.nextIdx === null || this.meta.nextIdx === undefined);
+        },
+
+        highlightToc: function(idx) {
+            var links = document.querySelectorAll('.reader-toc-link');
+            for (var i = 0; i < links.length; i++) {
+                links[i].classList.remove('active');
+            }
+            if (typeof idx === 'number') {
+                var target = document.querySelector('.reader-toc-link[onclick*="go(' + idx + ')"]');
+                if (target) {
+                    target.classList.add('active');
+                    var tocEl = document.getElementById('readerToc');
+                    var linkTop = target.offsetTop - tocEl.offsetTop;
+                    var tocTop = tocEl.scrollTop;
+                    if (linkTop < tocTop || linkTop > tocTop + tocEl.clientHeight - 40) {
+                        tocEl.scrollTop = linkTop - tocEl.clientHeight / 2 + target.clientHeight / 2;
+                    }
+                }
+            }
+        },
+
+        toggleSidebar: function() {
+            var sb = document.getElementById('readerSidebar');
+            if (sb) sb.classList.toggle('open');
+        },
+
+        fontUp: function() {
+            if (this.fontSize < 28) { this.fontSize += 2; this.applyFontSize(); }
+        },
+        fontDown: function() {
+            if (this.fontSize > 14) { this.fontSize -= 2; this.applyFontSize(); }
+        },
+        applyFontSize: function() {
+            var el = document.getElementById('readerContent');
+            if (el) el.style.fontSize = this.fontSize + 'px';
+            var lbl = document.getElementById('fontSizeLabel');
+            if (lbl) lbl.textContent = this.fontSize;
+            try { localStorage.setItem('reader_font_size', this.fontSize); } catch(e) {}
+        }
+    };
+
+    window._reader = R;
+    R.init();
+})();
+</script>
+{% endblock %}

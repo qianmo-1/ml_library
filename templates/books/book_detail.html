@@ -1,0 +1,848 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ book.title }} - NOVA·图书馆{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-cover-wrap {
+    position: relative;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(0,240,255,0.04), rgba(255,0,255,0.06));
+    border: 1px solid var(--border);
+}
+.detail-cover-wrap img {
+    width: 100%;
+    max-height: 480px;
+    object-fit: cover;
+    display: block;
+}
+.detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+    transition: all var(--transition-fast);
+}
+.stat-card:hover { border-color: var(--border-glow); box-shadow: 0 0 15px rgba(0,240,255,0.08); }
+.stat-card .sc-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--cyan);
+    text-shadow: 0 0 10px rgba(0,240,255,0.3);
+}
+.stat-card .sc-lbl {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 0.15rem;
+}
+.detail-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+.btn-action-borrow {
+    flex: 1;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--primary-gradient);
+    color: #0a0a1a;
+    box-shadow: 0 0 18px rgba(0,240,255,0.25);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+.btn-action-borrow:hover {
+    background: var(--primary-gradient-h);
+    box-shadow: 0 0 30px rgba(0,240,255,0.4), 0 0 50px rgba(255,0,255,0.15);
+    transform: translateY(-2px);
+    color: #0a0a1a;
+}
+.btn-action-borrow:disabled {
+    background: rgba(0,240,255,0.12);
+    color: var(--text-muted);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+.btn-action-borrow.borrowing {
+    background: rgba(0,240,255,0.1);
+    color: var(--cyan);
+    border: 1.5px solid rgba(0,240,255,0.3);
+    box-shadow: none;
+    cursor: default;
+}
+.btn-action-borrow.borrowing:hover { transform: none; box-shadow: none; }
+.btn-action-return {
+    flex: 1;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #00ff88, #00cc66);
+    color: #0a0a1a;
+    box-shadow: 0 0 18px rgba(0,255,136,0.3);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+.btn-action-return:hover {
+    box-shadow: 0 0 30px rgba(0,255,136,0.5);
+    transform: translateY(-2px);
+    color: #0a0a1a;
+}
+.btn-action-outline {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+}
+.btn-action-outline:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 10px rgba(0,240,255,0.1);
+}
+.content-tabs {
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+.content-tabs .nav-link {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.7rem 1.2rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all var(--transition-fast);
+    background: transparent;
+}
+.content-tabs .nav-link:hover {
+    color: var(--cyan);
+    border-bottom-color: rgba(0,240,255,0.3);
+}
+.content-tabs .nav-link.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+    background: transparent;
+    text-shadow: 0 0 10px rgba(0,240,255,0.2);
+}
+.tab-pane {
+    padding: 0.5rem 0;
+}
+.book-description {
+    color: var(--text-secondary);
+    font-size: 0.93rem;
+    line-height: 1.85;
+}
+.content-preview-box {
+    background: linear-gradient(180deg, rgba(10,10,30,0.9), rgba(10,10,25,0.95));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    position: relative;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Georgia', 'Noto Serif SC', serif;
+}
+.content-preview-box::-webkit-scrollbar { width: 4px; }
+.content-preview-box::-webkit-scrollbar-thumb {
+    background: rgba(0,240,255,0.2);
+    border-radius: 2px;
+}
+.content-preview-box::-webkit-scrollbar-track { background: transparent; }
+.content-preview-box h4 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85rem;
+    color: var(--cyan);
+    letter-spacing: 0.08em;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 8px rgba(0,240,255,0.15);
+}
+.content-preview-box p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 2;
+    text-indent: 2em;
+    margin-bottom: 1.2rem;
+}
+.content-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(transparent, rgba(10,10,25,0.95));
+    pointer-events: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.toc-list {
+    list-style: none;
+    padding: 0;
+}
+.toc-item {
+    display: flex;
+    cursor: pointer;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(0,240,255,0.06);
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-sm);
+}
+.toc-item:hover {
+    background: rgba(0,240,255,0.04);
+}
+.toc-item .toc-chapter { font-weight: 600; color: var(--text-primary); font-size: 0.88rem; }
+.toc-item .toc-page { font-family: 'Orbitron', sans-serif; font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.04em; }
+.toc-item.toc-section .toc-chapter {
+    font-weight: 700; color: var(--cyan); font-size: 0.82rem;
+    text-shadow: 0 0 6px rgba(0,240,255,0.15);
+}
+.toc-item.toc-section { border-bottom-color: rgba(0,240,255,0.12); }
+.spec-table { width: 100%; }
+.spec-table tr {
+    border-bottom: 1px solid rgba(0,240,255,0.06);
+}
+.spec-table td {
+    padding: 0.7rem 0;
+    font-size: 0.88rem;
+}
+.spec-table td:first-child {
+    width: 120px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+.spec-table td:last-child { color: var(--text-primary); }
+
+.related-book-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all var(--transition);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem;
+}
+.related-book-card:hover {
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-sm);
+    transform: translateX(3px);
+}
+.related-book-card .rbc-cover {
+    width: 45px;
+    height: 64px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.related-book-card .rbc-info .rbc-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.1rem;
+}
+.related-book-card .rbc-info .rbc-meta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.chapter-reader-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 2rem 2.5rem;
+    background: linear-gradient(180deg, rgba(10,10,30,0.95), rgba(10,10,25,0.98));
+    font-family: 'Georgia', 'Noto Serif SC', serif;
+    font-size: 0.95rem;
+    line-height: 2;
+    color: var(--text-secondary);
+}
+.chapter-reader-body::-webkit-scrollbar { width: 5px; }
+.chapter-reader-body::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); border-radius: 3px; }
+.chapter-reader-body::-webkit-scrollbar-track { background: transparent; }
+.chapter-reader-body p { margin-bottom: 1rem; }
+.chapter-reader-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(0,240,255,0.03);
+    border-bottom: 1px solid var(--border);
+}
+.chapter-reader-nav .crn-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.chapter-reader-nav .crn-btn:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,0.15); }
+.chapter-reader-nav .crn-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.chapter-reader-nav .crn-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    color: var(--cyan);
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 6px rgba(0,240,255,0.15);
+}
+.chapter-reader-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.first-chapter-box {
+    background: linear-gradient(180deg, rgba(10,10,30,0.9), rgba(10,10,25,0.95));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    max-height: 450px;
+    overflow-y: auto;
+    font-family: 'Georgia', 'Noto Serif SC', serif;
+    font-size: 0.93rem;
+    line-height: 2;
+    color: var(--text-secondary);
+}
+.first-chapter-box::-webkit-scrollbar { width: 4px; }
+.first-chapter-box::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); border-radius: 2px; }
+.first-chapter-box::-webkit-scrollbar-track { background: transparent; }
+.first-chapter-box br + br { content: ""; display: block; margin-bottom: 0.8rem; }
+.first-chapter-box p { margin-bottom: 0.8rem; }
+.first-chapter-fade {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 80px;
+    background: linear-gradient(transparent, rgba(10,10,25,0.95));
+    pointer-events: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.first-chapter-wrap { position: relative; }
+.read-full-btn {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    margin-top: 0.5rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--cyan);
+    background: rgba(0,240,255,0.06);
+    border: 1px solid rgba(0,240,255,0.2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+.read-full-btn:hover { background: rgba(0,240,255,0.12); box-shadow: 0 0 12px rgba(0,240,255,0.1); color: var(--cyan); }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'index' %}">首页</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'book_list' %}">图书列表</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ book.title }}</li>
+    </ol>
+</nav>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="detail-cover-wrap">
+            {% if book.cover %}
+            <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="cover-preview-img" style="cursor:pointer;">
+            {% else %}
+            <div class="book-cover-placeholder cover-preview-img" style="height:380px;cursor:pointer;">
+                <i class="bi bi-book" style="font-size:4rem;"></i>
+            </div>
+            {% endif %}
+            <button type="button" class="preview-trigger" data-bs-toggle="modal" data-bs-target="#bookPreviewModal" title="预览大图">
+                <i class="bi bi-arrows-fullscreen"></i>
+            </button>
+        </div>
+
+        <div class="detail-stats">
+            <div class="stat-card">
+                <div class="sc-val">{{ book.total_stock }}</div>
+                <div class="sc-lbl">总库存</div>
+            </div>
+            <div class="stat-card">
+                <div class="sc-val" style="color:{% if book.current_stock > 0 %}var(--success){% else %}var(--danger){% endif %};">
+                    {{ book.current_stock }}
+                </div>
+                <div class="sc-lbl">可借数量</div>
+            </div>
+            <div class="stat-card">
+                <div class="sc-val" style="color:var(--magenta);">{{ book.borrow_count }}</div>
+                <div class="sc-lbl">累计借阅</div>
+            </div>
+        </div>
+
+        <div class="detail-actions">
+            {% if user.is_authenticated and user.role != 'admin' %}
+                {% if user_borrow %}
+                <button class="btn btn-action-return return-detail-btn" data-id="{{ user_borrow.id }}" data-title="{{ book.title }}">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>归还此书
+                </button>
+                {% else %}
+                    {% if book.current_stock > 0 %}
+                    <button class="btn-action-borrow" id="borrowBtn" data-book-id="{{ book.id }}" data-book-title="{{ book.title }}">
+                        <i class="bi bi-cart-plus me-1"></i>立即借阅
+                    </button>
+                    {% else %}
+                    <button class="btn-action-borrow borrowing" disabled>
+                        <i class="bi bi-x-circle me-1"></i>暂无库存
+                    </button>
+                    {% endif %}
+                {% endif %}
+                {% if not user_borrow and book.current_stock > 0 %}
+                <a href="{% url 'my_borrows' %}" class="btn-action-outline">
+                    <i class="bi bi-clock-history me-1"></i>借阅记录
+                </a>
+                {% endif %}
+            {% elif not user.is_authenticated %}
+                <a href="{% url 'login' %}?next={{ request.path }}" class="btn-action-borrow">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>登录后借阅
+                </a>
+            {% elif user.role == 'admin' %}
+                <span class="btn-action-borrow borrowing" style="cursor:default;">
+                    <i class="bi bi-shield-lock me-1"></i>管理员账户
+                </span>
+            {% endif %}
+            {% if user.is_authenticated %}
+            <a href="{% url 'book_list' %}" class="btn-action-outline">
+                <i class="bi bi-arrow-left me-1"></i>返回列表
+            </a>
+            {% endif %}
+        </div>
+
+        {% if related_books %}
+        <div class="mt-4">
+            <h6 class="text-cyan mb-3" style="font-family:'Orbitron',sans-serif;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;">
+                <i class="bi bi-link-45deg me-1"></i>同类热门
+            </h6>
+            <div class="d-flex flex-column gap-2">
+                {% for rb in related_books %}
+                <a href="{% url 'book_detail' rb.id %}" class="related-book-card">
+                    {% if rb.cover %}
+                    <img src="{{ rb.cover.url }}" alt="{{ rb.title }}" class="rbc-cover">
+                    {% else %}
+                    <div class="rbc-cover" style="display:flex;align-items:center;justify-content:center;background:rgba(0,240,255,0.06);">
+                        <i class="bi bi-book" style="color:rgba(0,240,255,0.2);"></i>
+                    </div>
+                    {% endif %}
+                    <div class="rbc-info">
+                        <div class="rbc-title">{{ rb.title }}</div>
+                        <div class="rbc-meta">借阅 {{ rb.borrow_count }} 次</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <h1 class="mb-1" style="color:var(--text-primary);font-weight:700;font-size:1.5rem;">{{ book.title }}</h1>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                <span class="badge badge-primary" style="font-size:0.8rem;">{{ book.author }}</span>
+                {% if book.category %}
+                <span class="badge badge-info" style="font-size:0.8rem;">{{ book.category.name }}</span>
+                {% endif %}
+                {% if book.publisher %}
+                <span class="tag">{{ book.publisher }}</span>
+                {% endif %}
+            </div>
+
+            <ul class="nav content-tabs" id="detailTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-desc" type="button" role="tab">
+                        <i class="bi bi-journal-text me-1"></i>内容简介
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-spec" type="button" role="tab">
+                        <i class="bi bi-info-circle me-1"></i>图书信息
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-preview" type="button" role="tab">
+                        <i class="bi bi-book me-1"></i>内容预览
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-toc" type="button" role="tab">
+                        <i class="bi bi-list-ol me-1"></i>目录试读
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="tab-desc" role="tabpanel">
+                    {% if book.description %}
+                    <div class="book-description">{{ book.description }}</div>
+                    {% else %}
+                    <div class="book-description text-muted">暂无内容简介。</div>
+                    {% endif %}
+                </div>
+
+                <div class="tab-pane fade" id="tab-spec" role="tabpanel">
+                    <table class="spec-table">
+                        <tr><td>ISBN</td><td>{{ book.isbn }}</td></tr>
+                        <tr><td>作者</td><td>{{ book.author }}</td></tr>
+                        <tr><td>出版社</td><td>{{ book.publisher|default:"-" }}</td></tr>
+                        {% if book.publish_date %}
+                        <tr><td>出版日期</td><td>{{ book.publish_date|date:"Y-m-d" }}</td></tr>
+                        {% endif %}
+                        <tr><td>总库存</td><td>{{ book.total_stock }} 册</td></tr>
+                        <tr><td>当前在馆</td><td>{{ book.current_stock }} 册</td></tr>
+                        <tr><td>累计借阅</td><td>{{ book.borrow_count }} 次</td></tr>
+                        {% if book.position %}
+                        <tr><td>馆藏位置</td><td>{{ book.position }}</td></tr>
+                        {% endif %}
+                        <tr><td>所属分类</td><td>{{ book.category.name|default:"-" }}</td></tr>
+                    </table>
+                </div>
+
+                <div class="tab-pane fade" id="tab-preview" role="tabpanel">
+                    {% if first_chapter %}
+                    <div class="first-chapter-wrap">
+                        <h4 style="font-family:'Orbitron',sans-serif;font-size:0.85rem;color:var(--cyan);letter-spacing:0.08em;text-align:center;margin-bottom:1.5rem;text-shadow:0 0 8px rgba(0,240,255,0.15);">
+                            《{{ book.title }}》 — {{ first_chapter.chapter_title }}
+                        </h4>
+                        <div class="first-chapter-box" id="firstChapterContent">
+                            {{ first_chapter.content|linebreaksbr }}
+                        </div>
+                        <div class="first-chapter-fade"></div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'book_reader' book.id %}" class="read-full-btn">
+                            <i class="bi bi-book"></i>从第一章开始阅读全文（共 {{ chapter_count }} 章）
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="content-preview-box">
+                        <h4>《{{ book.title }}》试读章节</h4>
+                        <p>在浩瀚的知识海洋中，每一本书都是一艘航向未知世界的飞船。{{ book.title }}以其独特的视角，带领读者穿越思维的边界，探索{{ book.category.name|default:"知识" }}的深层奥秘。</p>
+                        <p>{{ book.author }}以其深厚的学术功底和独到的见解，在本书中系统性地阐述了相关领域的核心概念与发展脉络。</p>
+                        <p>无论你是初探该领域的新手，还是已有相当积累的专业人士，{{ book.title }}都能为你提供一个全新的认知框架。</p>
+                        <div class="content-fade"></div>
+                    </div>
+                    <p class="text-center mt-3 text-muted" style="font-size:0.78rem;">
+                        <i class="bi bi-info-circle me-1"></i>章节内容正在收录中，敬请期待
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="tab-pane fade" id="tab-toc" role="tabpanel">
+                    {% if toc_list %}
+                    <ul class="toc-list">
+                        {% for item in toc_list %}
+                        <li class="toc-item {% if not item.1 %}toc-section{% endif %}"
+                            {% if item.1 %}data-chapter-index="{{ forloop.counter0 }}" onclick="window.location.href='{% url 'book_reader' book.id %}?chapter={{ forloop.counter0 }}'" title="点击阅读「{{ item.0 }}」"{% endif %}>
+                            <span class="toc-chapter">{{ item.0 }}</span>
+                            <span class="toc-page">{{ item.1|default:"" }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="text-muted mt-3" style="font-size:0.78rem;">
+                        <i class="bi bi-info-circle me-1"></i>共 {{ toc_list|length }} 条目录项 · 点击章节可查看完整内容
+                    </p>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-journal-x" style="font-size:2rem;"></i>
+                        <p class="mt-2">暂未收录目录信息</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bookPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-preview-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>{{ book.title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-layout">
+                    <div class="preview-cover-section">
+                        {% if book.cover %}
+                        <img src="{{ book.cover.url }}" alt="{{ book.title }}">
+                        {% else %}
+                        <div class="book-cover-placeholder" style="height:300px;width:220px;">
+                            <i class="bi bi-book" style="font-size:4rem;"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="preview-info-section">
+                        <h3>{{ book.title }}</h3>
+                        <div class="preview-meta">
+                            <span class="badge badge-primary">{{ book.author }}</span>
+                            {% if book.category %}
+                            <span class="badge badge-info">{{ book.category.name }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="preview-stat-row">
+                            <div class="preview-stat">
+                                <div class="ps-val">{{ book.total_stock }}</div>
+                                <div class="ps-lbl">总库存</div>
+                            </div>
+                            <div class="preview-stat">
+                                <div class="ps-val">{{ book.current_stock }}</div>
+                                <div class="ps-lbl">在馆可借</div>
+                            </div>
+                            <div class="preview-stat">
+                                <div class="ps-val">{{ book.borrow_count }}</div>
+                                <div class="ps-lbl">累计借阅</div>
+                            </div>
+                        </div>
+                        <div class="text-muted" style="font-size:0.8rem;">
+                            <i class="bi bi-upc-scan me-1"></i>ISBN: {{ book.isbn }}
+                            {% if book.publish_date %}
+                            <span class="ms-3"><i class="bi bi-calendar3 me-1"></i>{{ book.publish_date|date:"Y-m-d" }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="chapterReaderModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-preview-content">
+            <div class="chapter-reader-nav">
+                <button class="crn-btn" id="crnPrev" disabled title="">
+                    <i class="bi bi-chevron-left me-1"></i>上一章
+                </button>
+                <span class="crn-title" id="chapterReaderTitle">加载中...</span>
+                <button class="crn-btn" id="crnNext" disabled title="">
+                    下一章<i class="bi bi-chevron-right ms-1"></i>
+                </button>
+            </div>
+            <div class="chapter-reader-body" id="chapterReaderBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border" style="color:var(--cyan);"></div>
+                    <p class="mt-3 text-muted">正在加载章节内容...</p>
+                </div>
+            </div>
+            <div class="chapter-reader-footer">
+                <span id="chapterReaderInfo"></span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var currentBookId = {{ book.id }};
+var currentChapterIdx = 0;
+var chapterData = {};
+var chapterMeta = {};
+
+function openChapterReader(chapterIdx) {
+    try {
+        currentChapterIdx = chapterIdx;
+        loadChapter(currentBookId, chapterIdx);
+        var $modal = $('#chapterReaderModal');
+        if ($modal.length && !$modal.hasClass('show')) $modal.modal('show');
+    } catch(e) {
+        console.error('openChapterReader error:', e);
+    }
+}
+
+function loadChapter(bookId, chapterIdx) {
+    if (chapterData[chapterIdx]) {
+        renderChapter(chapterData[chapterIdx], chapterMeta[chapterIdx]);
+        return;
+    }
+    var $body = $('#chapterReaderBody');
+    if (!$body.length) return;
+    $body.html('<div class="text-center py-5"><div class="spinner-border" style="color:var(--cyan);"></div><p class="mt-3 text-muted">加载中...</p></div>');
+    $.ajax({
+        url: '/books/chapter/' + bookId + '/' + chapterIdx + '/',
+        type: 'GET',
+        success: function(res) {
+            if (res.code === 200) {
+                var d = res.data;
+                chapterData[chapterIdx] = d.content;
+                chapterMeta[chapterIdx] = {title: d.chapter_title, prev: d.prev, next: d.next, total: d.total_chapters};
+                renderChapter(d.content, chapterMeta[chapterIdx]);
+            } else {
+                $body.html('<div class="text-center py-5 text-muted"><i class="bi bi-journal-x" style="font-size:2rem;"></i><p class="mt-2">章节内容加载失败</p></div>');
+            }
+        },
+        error: function() {
+            $body.html('<div class="text-center py-5 text-muted"><i class="bi bi-journal-x" style="font-size:2rem;"></i><p class="mt-2">网络错误，请重试</p></div>');
+        }
+    });
+}
+
+function renderChapter(content, meta) {
+    try {
+        var lines = content.split('\n');
+        var html = '';
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (line) html += '<p>' + line + '</p>';
+        }
+        $('#chapterReaderBody').html(html);
+        $('#chapterReaderBody').scrollTop(0);
+        $('#chapterReaderTitle').text(meta.title);
+        $('#chapterReaderInfo').text('第 ' + (currentChapterIdx + 1) + ' / ' + meta.total + ' 章');
+        var $prevBtn = $('#crnPrev');
+        var $nextBtn = $('#crnNext');
+        if (meta.prev) {
+            $prevBtn.prop('disabled', false).attr('title', meta.prev.title).off('click').on('click', function(){ openChapterReader(meta.prev.index); });
+        } else {
+            $prevBtn.prop('disabled', true).attr('title', '');
+        }
+        if (meta.next) {
+            $nextBtn.prop('disabled', false).attr('title', meta.next.title).off('click').on('click', function(){ openChapterReader(meta.next.index); });
+        } else {
+            $nextBtn.prop('disabled', true).attr('title', '');
+        }
+    } catch(e) {
+        console.error('renderChapter error:', e);
+    }
+}
+
+$(function(){
+    try {
+        function doBorrow(btn, bookId, bookTitle) {
+            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>处理中...');
+            $.ajax({
+                url: '/borrow/borrow/' + bookId + '/',
+                type: 'POST',
+                data: { csrfmiddlewaretoken: csrftoken },
+                success: function(res) {
+                    if (res.code === 200) {
+                        showToast('《' + bookTitle + '》借阅成功！应还日期：' + (res.data.due_date || ''), 'success');
+                        setTimeout(function() { location.reload(); }, 1500);
+                    } else {
+                        showToast(res.msg || '借阅失败，请重试', 'error');
+                        btn.prop('disabled', false).html('<i class="bi bi-cart-plus me-1"></i>立即借阅');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = '服务器错误，请稍后重试';
+                    try { var r = JSON.parse(xhr.responseText); msg = r.msg || msg; } catch(e) {}
+                    showToast(msg, 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-cart-plus me-1"></i>立即借阅');
+                }
+            });
+        }
+
+        $('#borrowBtn').on('click', function() {
+            var btn = $(this);
+            doBorrow(btn, btn.data('book-id'), btn.data('book-title'));
+        });
+
+        $('#previewBorrowBtn').on('click', function() {
+            var btn = $(this);
+            doBorrow(btn, btn.data('book-id'), btn.data('book-title'));
+        });
+
+        $('.return-detail-btn').on('click', function() {
+            var btn = $(this);
+            var borrowId = btn.data('id');
+            var bookTitle = btn.data('title');
+            if (!confirm('确定要归还《' + bookTitle + '》吗？如有逾期将自动计算罚款。')) return;
+            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>归还中...');
+            $.ajax({
+                url: '/borrow/return/' + borrowId + '/',
+                type: 'POST',
+                data: { csrfmiddlewaretoken: csrftoken },
+                success: function(res) {
+                    if (res.code === 200) {
+                        var msg = '归还成功！';
+                        if (res.data && res.data.fine_amount && res.data.fine_amount > 0) {
+                            msg += ' 逾期 ' + res.data.overdue_days + ' 天，罚款 ¥' + res.data.fine_amount.toFixed(2);
+                        }
+                        showToast(msg, 'success');
+                        setTimeout(function() { location.reload(); }, 1500);
+                    } else {
+                        showToast(res.msg || '归还失败', 'error');
+                        btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-down me-1"></i>归还此书');
+                    }
+                },
+                error: function(xhr) {
+                    var m = '归还失败';
+                    try { var r = JSON.parse(xhr.responseText); m = r.msg || m; } catch(e) {}
+                    showToast(m, 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-down me-1"></i>归还此书');
+                }
+            });
+        });
+
+        $('.cover-preview-img').on('click', function() {
+            $('#bookPreviewModal').modal('show');
+        });
+    } catch(e) {
+        console.error('book_detail init error:', e);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}用户注册 - NOVA·图书馆{% endblock %}
+
+{% block body_content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="auth-brand-sci">◈</span>
+    </div>
+    <h2>创建账户</h2>
+    <p class="auth-subtitle">加入NOVA·图书馆管理系统</p>
+    <form id="registerForm" novalidate>
+      {% csrf_token %}
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <input type="password" class="form-control" id="password" name="password" placeholder="请输入密码" required minlength="6">
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+          <input type="password" class="form-control" id="confirmPassword" name="confirm_password" placeholder="请再次输入密码" required>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-phone"></i></span>
+          <input type="text" class="form-control" id="phone" name="phone" placeholder="请输入手机号" maxlength="11">
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+          <input type="text" class="form-control" id="studentId" name="student_id" placeholder="请输入学号或工号">
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+          <input type="email" class="form-control" id="email" name="email" placeholder="请输入邮箱地址">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg w-100" id="registerBtn">注 册</button>
+    </form>
+    <div class="text-center mt-3 auth-switch-text">
+      已有账号? <a href="{% url 'login' %}">立即登录</a>
+    </div>
+  </div>
+</div>
+{% endblock body_content %}
+
+{% block extra_js %}
+<script>
+$(function() {
+  $('#registerForm').on('submit', function(e) {
+    e.preventDefault();
+    var pwd = $('#password').val();
+    var confirmPwd = $('#confirmPassword').val();
+    if (pwd !== confirmPwd) {
+      showToast('两次输入的密码不一致', 'error');
+      return;
+    }
+    var $btn = $('#registerBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>注册中...');
+    $.ajax({
+      url: "{% url 'register' %}",
+      type: "POST",
+      data: {
+        username: $('#username').val(),
+        password: pwd,
+        confirm_password: confirmPwd,
+        phone: $('#phone').val(),
+        student_id: $('#studentId').val(),
+        email: $('#email').val(),
+        csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+      },
+      success: function(res) {
+        if (res.code === 200) {
+          showToast(res.msg || '注册成功', 'success');
+          setTimeout(function() { window.location.href = "{% url 'login' %}"; }, 800);
+        } else {
+          showToast(res.msg || '注册失败', 'error');
+          $btn.prop('disabled', false).html('注 册');
+        }
+      },
+      error: function(xhr) {
+        var msg = '注册失败';
+        try { msg = JSON.parse(xhr.responseText).msg || msg; } catch(e) {}
+        showToast(msg, 'error');
+        $btn.prop('disabled', false).html('注 册');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

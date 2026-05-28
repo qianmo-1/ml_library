@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}热门图书排行{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="page-title mb-0">热门图书排行</h4>
+    <a href="{% url 'stats_dashboard' %}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left me-1"></i>返回统计面板
+    </a>
+</div>
+
+{% if hot_books %}
+<div class="row g-3 mb-4">
+    {% for book in hot_books %}
+    {% if forloop.counter <= 3 %}
+    <div class="col-md-4">
+        <div class="glass-card p-4 text-center h-100 hover-lift">
+            <div class="mb-3">
+                {% if forloop.counter == 1 %}
+                <span class="rank-badge rank-1" style="width:40px;height:40px;font-size:1.1rem;">
+                    <i class="bi bi-trophy-fill"></i>
+                </span>
+                <div class="mt-2 fw-bold" style="color: #f59e0b; font-size: 0.9rem;">第 1 名</div>
+                {% elif forloop.counter == 2 %}
+                <span class="rank-badge rank-2" style="width:40px;height:40px;font-size:1.1rem;">
+                    <i class="bi bi-trophy-fill"></i>
+                </span>
+                <div class="mt-2 fw-bold" style="color: #94a3b8; font-size: 0.9rem;">第 2 名</div>
+                {% elif forloop.counter == 3 %}
+                <span class="rank-badge rank-3" style="width:40px;height:40px;font-size:1.1rem;">
+                    <i class="bi bi-trophy-fill"></i>
+                </span>
+                <div class="mt-2 fw-bold" style="color: #d97706; font-size: 0.9rem;">第 3 名</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                {% if book.cover %}
+                <img src="{{ book.cover.url }}" alt="{{ book.title }}" style="width: 120px; height: 180px; object-fit: cover; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);">
+                {% else %}
+                <div class="book-cover-placeholder" style="width: 120px; height: 180px; border-radius: var(--radius-sm); margin: 0 auto; box-shadow: var(--shadow-lg);">
+                    <i class="bi bi-book"></i>
+                </div>
+                {% endif %}
+            </div>
+            <h6 class="fw-bold">{{ book.title }}</h6>
+            <p class="text-muted small mb-2">{{ book.author }}</p>
+            <div class="d-flex justify-content-center gap-3">
+                <span class="data-highlight" style="font-size: 1rem;">
+                    <i class="bi bi-bar-chart-fill me-1"></i>{{ book.borrow_count_anno|default:0 }} 次
+                </span>
+                <span class="text-muted small">
+                    库存: {{ book.current_stock }}/{{ book.total_stock }}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">排名</th>
+                    <th style="width: 80px;">封面</th>
+                    <th>书名</th>
+                    <th>作者</th>
+                    <th>借阅次数</th>
+                    <th>当前库存</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for book in hot_books %}
+                <tr class="hot-rank-item">
+                    <td>
+                        {% if forloop.counter == 1 %}
+                        <span class="rank-badge rank-1">1</span>
+                        {% elif forloop.counter == 2 %}
+                        <span class="rank-badge rank-2">2</span>
+                        {% elif forloop.counter == 3 %}
+                        <span class="rank-badge rank-3">3</span>
+                        {% else %}
+                        <span class="rank-num" style="font-size:1.2rem;font-weight:700;color:var(--text-muted);min-width:32px;text-align:center;display:inline-block;">{{ forloop.counter }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if book.cover %}
+                        <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="hot-cover">
+                        {% else %}
+                        <div class="hot-cover" style="display:flex;align-items:center;justify-content:center;">
+                            <i class="bi bi-book" style="color: var(--primary-light);"></i>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ book.title }}</td>
+                    <td>{{ book.author }}</td>
+                    <td>
+                        <span class="hot-count">{{ book.borrow_count_anno|default:0 }}</span>
+                    </td>
+                    <td>
+                        {% if book.current_stock > 0 %}
+                        <span class="badge badge-success">{{ book.current_stock }}</span>
+                        {% else %}
+                        <span class="badge badge-danger">{{ book.current_stock }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h5>暂无图书数据</h5>
+                            <p>图书排行将在此显示</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

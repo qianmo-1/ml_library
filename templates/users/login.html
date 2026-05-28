@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}用户登录 - NOVA·图书馆{% endblock %}
+
+{% block body_content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="auth-brand-sci">◈</span>
+    </div>
+    <h2>欢迎回来</h2>
+    <p class="auth-subtitle">登录您的NOVA·图书馆账户</p>
+    <form id="loginForm" novalidate>
+      {% csrf_token %}
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required autocomplete="username">
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <input type="password" class="form-control" id="password" name="password" placeholder="请输入密码" required autocomplete="current-password">
+        </div>
+      </div>
+      <div class="mb-3 text-end">
+        <a href="{% url 'forgot_password' %}" class="auth-link">忘记密码?</a>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg w-100" id="loginBtn">登 录</button>
+    </form>
+    <div class="text-center mt-3 auth-switch-text">
+      还没有账号? <a href="{% url 'register' %}">立即注册</a>
+    </div>
+  </div>
+</div>
+{% endblock body_content %}
+
+{% block extra_js %}
+<script>
+$(function() {
+  $('#loginForm').on('submit', function(e) {
+    e.preventDefault();
+    var $btn = $('#loginBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>登录中...');
+    $.ajax({
+      url: "{% url 'login' %}",
+      type: "POST",
+      timeout: 15000,
+      data: {
+        username: $('#username').val(),
+        password: $('#password').val(),
+        csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+      },
+      success: function(res) {
+        try {
+          if (res.code === 200) {
+            showToast(res.msg || '登录成功', 'success');
+            setTimeout(function() { window.location.href = (res.data && res.data.next) || "{% url 'index' %}"; }, 500);
+          } else {
+            showToast(res.msg || '登录失败', 'error');
+            $btn.prop('disabled', false).html('登 录');
+          }
+        } catch(e) {
+          console.error(e);
+          $btn.prop('disabled', false).html('登 录');
+        }
+      },
+      error: function(xhr) {
+        var msg = '登录失败';
+        try { var r = JSON.parse(xhr.responseText); msg = r.msg || r.message || msg; } catch(e) {}
+        try {
+          showToast(msg, 'error');
+        } catch(e) {
+          console.error(e);
+        }
+        $btn.prop('disabled', false).html('登 录');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,467 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}智能统计 - NOVA·图书馆{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.stat-card-dash {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition);
+}
+.stat-card-dash:hover {
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-3px);
+}
+.stat-card-dash::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+}
+.stat-card-dash.t-blue::before { background: var(--primary-gradient); }
+.stat-card-dash.t-green::before { background: linear-gradient(90deg, #00ff88, #00cc66); }
+.stat-card-dash.t-purple::before { background: linear-gradient(90deg, #ff00ff, #8800ff); }
+.stat-card-dash.t-orange::before { background: linear-gradient(90deg, #ffaa00, #ff6600); }
+.stat-card-dash.t-red::before { background: linear-gradient(90deg, #ff3355, #cc0033); }
+
+.stat-card-dash .sd-icon {
+    font-size: 1.6rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+.stat-card-dash .sd-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.2rem;
+}
+.stat-card-dash.t-blue .sd-val { color: var(--cyan); text-shadow: 0 0 12px rgba(0,240,255,0.3); }
+.stat-card-dash.t-green .sd-val { color: var(--success); text-shadow: 0 0 12px rgba(0,255,136,0.3); }
+.stat-card-dash.t-purple .sd-val { color: var(--magenta); text-shadow: 0 0 12px rgba(255,0,255,0.3); }
+.stat-card-dash.t-orange .sd-val { color: var(--warning); text-shadow: 0 0 12px rgba(255,170,0,0.3); }
+.stat-card-dash.t-red .sd-val { color: var(--danger); text-shadow: 0 0 12px rgba(255,51,85,0.3); }
+.stat-card-dash .sd-lbl {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.stat-card-dash .sd-sub {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+}
+
+.chart-panel {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    transition: all var(--transition);
+}
+.chart-panel:hover { border-color: var(--border-glow); }
+.chart-panel .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+.chart-panel .chart-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(0,240,255,0.2);
+}
+.chart-panel .chart-badge {
+    font-size: 0.65rem;
+    padding: 0.15em 0.6em;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+.chart-container { width: 100%; }
+.chart-container.chart-3d { height: 420px; }
+.chart-container.chart-lg { height: 380px; }
+.chart-container.chart-md { height: 320px; }
+.chart-container.chart-sm { height: 300px; }
+
+.export-bar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+.export-bar .btn { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.03em; }
+
+@media (max-width: 768px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .stat-card-dash { padding: 0.9rem 0.5rem; }
+    .stat-card-dash .sd-val { font-size: 1.4rem; }
+    .chart-container.chart-3d { height: 280px; }
+    .chart-container.chart-lg { height: 260px; }
+    .chart-container.chart-md { height: 240px; }
+    .chart-container.chart-sm { height: 220px; }
+}
+@media (max-width: 576px) {
+    .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+    .stat-card-dash { padding: 0.7rem 0.3rem; }
+    .stat-card-dash .sd-val { font-size: 1.1rem; }
+    .stat-card-dash .sd-icon { font-size: 1.2rem; }
+    .stat-card-dash .sd-lbl { font-size: 0.6rem; }
+    .chart-panel { padding: 0.75rem; }
+    .chart-container.chart-3d { height: 240px; }
+    .chart-container.chart-lg { height: 220px; }
+    .chart-container.chart-md { height: 200px; }
+    .chart-container.chart-sm { height: 190px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header-sci">
+    <h1 class="page-title-sci"><i class="bi bi-bar-chart-fill me-2"></i>智能统计面板</h1>
+    <p class="page-subtitle-sci">数据驱动的图书馆运营洞察</p>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card-dash t-blue">
+        <span class="sd-icon">📚</span>
+        <div class="sd-val">{{ total_books }}</div>
+        <div class="sd-lbl">馆藏总量</div>
+    </div>
+    <div class="stat-card-dash t-purple">
+        <span class="sd-icon">👥</span>
+        <div class="sd-val">{{ total_users }}</div>
+        <div class="sd-lbl">注册用户</div>
+    </div>
+    <div class="stat-card-dash t-green">
+        <span class="sd-icon">📥</span>
+        <div class="sd-val">{{ total_borrows }}</div>
+        <div class="sd-lbl">累计借阅</div>
+    </div>
+    <div class="stat-card-dash t-blue">
+        <span class="sd-icon">📅</span>
+        <div class="sd-val">{{ today_borrow_count }}</div>
+        <div class="sd-lbl">今日借阅</div>
+    </div>
+    <div class="stat-card-dash t-green">
+        <span class="sd-icon">↩️</span>
+        <div class="sd-val">{{ today_return_count }}</div>
+        <div class="sd-lbl">今日归还</div>
+    </div>
+    <div class="stat-card-dash t-red">
+        <span class="sd-icon">⚠️</span>
+        <div class="sd-val">{{ today_overdue_count }}</div>
+        <div class="sd-lbl">当前逾期</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="chart-panel">
+            <div class="chart-header">
+                <span class="chart-title"><i class="bi bi-graph-up me-2"></i>月度借阅/归还趋势（近6个月）</span>
+                <span class="chart-badge badge badge-info">3D 柱状图</span>
+            </div>
+            <div class="chart-container chart-3d" id="chartMonthly3D"></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-panel">
+            <div class="chart-header">
+                <span class="chart-title"><i class="bi bi-pie-chart me-2"></i>借阅状态分布</span>
+                <span class="chart-badge badge badge-success">3D 饼图</span>
+            </div>
+            <div class="chart-container chart-md" id="chartStatus3D"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="chart-panel">
+            <div class="chart-header">
+                <span class="chart-title"><i class="bi bi-activity me-2"></i>近14天借阅趋势</span>
+                <span class="chart-badge badge badge-info">折线图</span>
+            </div>
+            <div class="chart-container chart-md" id="chartDaily"></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="chart-panel">
+            <div class="chart-header">
+                <span class="chart-title"><i class="bi bi-people me-2"></i>用户借阅排行 TOP8</span>
+                <span class="chart-badge badge badge-warning">条形图</span>
+            </div>
+            <div class="chart-container chart-md" id="chartUsers"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="chart-panel">
+            <div class="chart-header">
+                <span class="chart-title"><i class="bi bi-diagram-3 me-2"></i>分类图书分布</span>
+                <span class="chart-badge badge badge-info">3D 饼图</span>
+            </div>
+            <div class="chart-container chart-lg" id="chartCategory3D"></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-panel">
+            <div class="chart-header">
+                <span class="chart-title"><i class="bi bi-table me-2"></i>分类库存明细</span>
+                <span class="chart-badge badge badge-info">明细表</span>
+            </div>
+            <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>分类</th>
+                            <th>图书</th>
+                            <th>库存</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in category_stats %}
+                        <tr>
+                            <td><span class="tag">{{ cat.name }}</span></td>
+                            <td>{{ cat.book_count|default:0 }}</td>
+                            <td>{{ cat.current_stock|default:0 }}/{{ cat.total_stock|default:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">暂无数据</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="export-bar">
+    <a href="{% url 'stats_export_borrows' %}" class="btn btn-outline-primary">
+        <i class="bi bi-download me-1"></i>导出借阅记录 (.xlsx)
+    </a>
+    <a href="{% url 'stats_export_books' %}" class="btn btn-outline-primary">
+        <i class="bi bi-download me-1"></i>导出图书库存 (.xlsx)
+    </a>
+    <a href="{% url 'stats_export_users' %}" class="btn btn-outline-primary">
+        <i class="bi bi-download me-1"></i>导出用户数据 (.xlsx)
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+<script>
+(function(){
+    var cy = '#00f0ff', mg = '#ff00ff', gr = '#00ff88', or = '#ffaa00', rd = '#ff3355',
+        bg = 'rgba(10,10,25,0.6)', tx = '#aabbdd';
+
+    var monthly = {{ monthly_trends_json|safe }};
+    var daily = {{ daily_trends_json|safe }};
+    var statusData = {{ borrow_status_json|safe }};
+    var catData = {{ category_chart_json|safe }};
+    var userData = {{ user_borrow_json|safe }};
+
+    function mkOpt(title) {
+        return {
+            backgroundColor: 'transparent',
+            textStyle: { color: tx },
+            title: { show: false },
+            legend: { textStyle: { color: tx, fontSize: 11 }, top: 5 },
+            tooltip: { backgroundColor: 'rgba(10,10,30,0.95)', borderColor: 'rgba(0,240,255,0.3)', textStyle: { color: '#eaf0ff', fontSize: 12 } },
+            grid: { left: 50, right: 30, top: 40, bottom: 40 }
+        };
+    }
+
+    // ========== 3D Bar: 月度借阅/归还 ==========
+    if (monthly.length > 0) {
+        var c3d = echarts.init(document.getElementById('chartMonthly3D'));
+        var labels = monthly.map(function(m){return m.label;});
+        var bVals = monthly.map(function(m){return m.borrow;});
+        var rVals = monthly.map(function(m){return m.return;});
+        var data3d = [];
+        labels.forEach(function(l, i){
+            data3d.push([i, 0, bVals[i]]);
+            data3d.push([i, 1, rVals[i]]);
+        });
+        c3d.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { backgroundColor: 'rgba(10,10,30,0.95)', borderColor: 'rgba(0,240,255,0.3)', textStyle: { color: '#eaf0ff' } },
+            visualMap: { show: false, min: 0, max: Math.max.apply(null, bVals.concat(rVals)) + 5,
+                inRange: { color: [gr, cy, mg] }
+            },
+            xAxis3D: { type: 'category', data: labels, name: '月份', nameTextStyle: { color: tx },
+                axisLine: { lineStyle: { color: 'rgba(0,240,255,0.2)' } },
+                axisLabel: { color: tx, fontSize: 10 }
+            },
+            yAxis3D: { type: 'category', data: ['借阅', '归还'], name: '类型', nameTextStyle: { color: tx },
+                axisLine: { lineStyle: { color: 'rgba(0,240,255,0.2)' } },
+                axisLabel: { color: tx, fontSize: 10 }
+            },
+            zAxis3D: { type: 'value', name: '数量', nameTextStyle: { color: tx },
+                axisLine: { lineStyle: { color: 'rgba(0,240,255,0.2)' } },
+                axisLabel: { color: tx, fontSize: 10 }
+            },
+            grid3D: { boxWidth: 80, boxDepth: 50, viewControl: { autoRotate: true, autoRotateSpeed: 6, distance: 180,
+                alpha: 25, beta: 45 },
+                light: { main: { intensity: 1.5, shadow: true }, ambient: { intensity: 0.6 } }
+            },
+            series: [{
+                type: 'bar3D', data: data3d, shading: 'lambert',
+                label: { show: true, fontSize: 10, color: '#fff', distance: 2, formatter: function(p){ return p.value[2]; } },
+                itemStyle: { opacity: 0.9 },
+                emphasis: { itemStyle: { color: cy }, label: { fontSize: 14 } }
+            }]
+        });
+        $(window).on('resize', function(){ c3d.resize(); });
+    }
+
+    // ========== Regular Doughnut: 借阅状态 ==========
+    if (statusData.length > 0) {
+        var cStatus = echarts.init(document.getElementById('chartStatus3D'));
+        var opt = mkOpt();
+        opt.tooltip.trigger = 'item';
+        opt.tooltip.formatter = '{b}: {c} ({d}%)';
+        opt.legend.orient = 'vertical';
+        opt.legend.left = 'left';
+        opt.legend.top = 'center';
+        opt.series = [{
+            name: '借阅状态', type: 'pie', radius: ['45%', '75%'],
+            center: ['55%', '55%'],
+            avoidLabelOverlap: false, padAngle: 4,
+            itemStyle: { borderRadius: 8, borderColor: '#0a0a1a', borderWidth: 3 },
+            label: { show: true, position: 'outside', color: tx, fontSize: 10,
+                formatter: '{b}\n{d}%'
+            },
+            emphasis: {
+                label: { show: true, fontSize: 16, fontWeight: 'bold' },
+                scaleSize: 10
+            },
+            data: statusData,
+            color: [cy, gr, rd]
+        }];
+        cStatus.setOption(opt);
+        $(window).on('resize', function(){ cStatus.resize(); });
+    }
+
+    // ========== Line: 日度借阅趋势 ==========
+    if (daily.length > 0) {
+        var cDaily = echarts.init(document.getElementById('chartDaily'));
+        var opt = mkOpt();
+        opt.grid = { left: 50, right: 30, top: 30, bottom: 40 };
+        opt.xAxis = { type: 'category', data: daily.map(function(d){return d.label;}),
+            axisLine: { lineStyle: { color: 'rgba(0,240,255,0.15)' } },
+            axisLabel: { color: tx, fontSize: 10, rotate: 30 } };
+        opt.yAxis = { type: 'value',
+            axisLine: { lineStyle: { color: 'rgba(0,240,255,0.15)' } },
+            axisLabel: { color: tx, fontSize: 10 },
+            splitLine: { lineStyle: { color: 'rgba(0,240,255,0.05)' } } };
+        opt.series = [{
+            name: '借阅量', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+            data: daily.map(function(d){return d.count;}),
+            lineStyle: { width: 3, shadowBlur: 12, shadowColor: cy, color: new echarts.graphic.LinearGradient(0,0,1,0,
+                [{offset:0, color: cy}, {offset:1, color: mg}]) },
+            itemStyle: { color: cy, borderColor: '#0a0a1a', borderWidth: 2 },
+            areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,
+                [{offset:0, color:'rgba(0,240,255,0.2)'}, {offset:1, color:'rgba(0,240,255,0.02)'}]) }
+        }];
+        cDaily.setOption(opt);
+        $(window).on('resize', function(){ cDaily.resize(); });
+    }
+
+    // ========== Horizontal Bar: 用户排行 ==========
+    if (userData.length > 0) {
+        var cUser = echarts.init(document.getElementById('chartUsers'));
+        var opt = mkOpt();
+        opt.grid = { left: 90, right: 40, top: 20, bottom: 20 };
+        opt.xAxis = { type: 'value',
+            axisLine: { lineStyle: { color: 'rgba(0,240,255,0.15)' } },
+            axisLabel: { color: tx, fontSize: 10 },
+            splitLine: { lineStyle: { color: 'rgba(0,240,255,0.05)' } } };
+        opt.yAxis = { type: 'category', data: userData.map(function(u){return u.name;}).reverse(),
+            axisLine: { lineStyle: { color: 'rgba(0,240,255,0.15)' } },
+            axisLabel: { color: tx, fontSize: 10 } };
+        opt.series = [{
+            type: 'bar', data: userData.map(function(u){return u.value;}).reverse(),
+            barWidth: 16, itemStyle: {
+                borderRadius: [0, 8, 8, 0],
+                color: new echarts.graphic.LinearGradient(0,0,1,0,
+                    [{offset:0, color:cy}, {offset:1, color:mg}])
+            },
+            label: { show: true, position: 'right', color: cy, fontSize: 10,
+                fontWeight: 'bold', textShadowColor: 'rgba(0,240,255,0.4)', textShadowBlur: 8 }
+        }];
+        cUser.setOption(opt);
+        $(window).on('resize', function(){ cUser.resize(); });
+    }
+
+    // ========== 3D Pie: 分类图书分布 ==========
+    if (catData.length > 0) {
+        var cPie = echarts.init(document.getElementById('chartCategory3D'));
+        cPie.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(10,10,30,0.95)',
+                borderColor: 'rgba(0,240,255,0.3)', textStyle: { color: '#eaf0ff' },
+                formatter: '{b}: {c} ({d}%)' },
+            legend: { orient: 'vertical', left: 5, top: 'center',
+                textStyle: { color: tx, fontSize: 10 },
+                itemWidth: 10, itemHeight: 10 },
+            series: [{
+                name: '图书分类', type: 'pie',
+                radius: ['20%', '65%'],
+                center: ['58%', '55%'],
+                roseType: 'radius',
+                itemStyle: {
+                    borderRadius: 6,
+                    borderColor: '#0a0a1a',
+                    borderWidth: 3,
+                    shadowBlur: 20,
+                    shadowColor: 'rgba(0,0,0,0.3)'
+                },
+                label: { color: tx, fontSize: 10, formatter: '{b}: {d}%' },
+                labelLine: { lineStyle: { color: 'rgba(0,240,255,0.2)' } },
+                emphasis: {
+                    scaleSize: 20,
+                    itemStyle: { shadowBlur: 40, shadowColor: 'rgba(0,240,255,0.4)' },
+                    label: { fontSize: 14, fontWeight: 'bold' }
+                },
+                data: catData,
+                color: [cy, '#00ccff', '#00ff88', mg, '#ff8800', or, rd, '#00ffcc', '#88ff00', '#ff4400']
+            }]
+        });
+        $(window).on('resize', function(){ cPie.resize(); });
+    }
+})();
+</script>
+{% endblock %}

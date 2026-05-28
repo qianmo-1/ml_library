@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}电子图书阅览室 - NOVA·图书馆{% endblock %}
+
+{% block content %}
+<div class="reading-room-app">
+
+    <section class="rr-hero">
+        <div class="rr-hero-bg"></div>
+        <div class="rr-hero-content">
+            <h1 class="rr-hero-title">
+                <span class="rr-hero-icon">◈</span>
+                电子图书阅览室
+                <span class="rr-hero-icon">◈</span>
+            </h1>
+            <p class="rr-hero-sub">沉浸式数字阅读空间 · 馆藏 {{ total_books }} 册经典典籍</p>
+            <div class="rr-hero-stats">
+                <div class="rr-stat-item">
+                    <span class="rr-stat-val">{{ total_books }}</span>
+                    <span class="rr-stat-lbl">馆藏图书</span>
+                </div>
+                <div class="rr-stat-item">
+                    <span class="rr-stat-val">{{ categories|length }}</span>
+                    <span class="rr-stat-lbl">分类门类</span>
+                </div>
+                <div class="rr-stat-item">
+                    <span class="rr-stat-val">{{ all_books|length }}</span>
+                    <span class="rr-stat-lbl">可阅览</span>
+                </div>
+            </div>
+            <form class="rr-search" method="get" action="{% url 'reading_room' %}">
+                <div class="rr-search-wrap">
+                    <i class="bi bi-search rr-search-icon"></i>
+                    <input type="text" name="q" class="rr-search-input" placeholder="在阅览室中搜索书名、作者..." value="{{ search_query }}" autocomplete="off">
+                    <button type="submit" class="rr-search-btn">检索</button>
+                </div>
+                {% if search_query %}
+                <a href="{% url 'reading_room' %}" class="rr-search-clear"><i class="bi bi-x-circle"></i> 清除搜索</a>
+                {% endif %}
+            </form>
+        </div>
+    </section>
+
+    <section class="rr-categories">
+        <div class="rr-cat-pills">
+            <a href="{% url 'reading_room' %}" class="rr-cat-pill {% if not category_id %}active{% endif %}">
+                <i class="bi bi-grid-fill me-1"></i>全部
+            </a>
+            {% for cat in categories %}
+            <a href="{% url 'reading_room' %}?category={{ cat.id }}{% if search_query %}&q={{ search_query }}{% endif %}"
+               class="rr-cat-pill {% if category_id|stringformat:'s' == cat.id|stringformat:'s' %}active{% endif %}">
+                {{ cat.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if popular_books and not category_id and not search_query %}
+    <section class="rr-section">
+        <div class="rr-section-hdr">
+            <h2 class="rr-section-title"><i class="bi bi-fire me-2"></i>热门借阅</h2>
+        </div>
+        <div class="rr-shelf">
+            {% for book in popular_books %}
+            <div class="rr-book-card popular" onclick="location.href='{% url 'book_reader' book.id %}'">
+                <div class="rr-book-spine"></div>
+                <div class="rr-book-cover-wrap">
+                    {% if book.cover %}
+                    <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="rr-book-cover">
+                    {% else %}
+                    <div class="rr-book-cover rr-book-cover-gen" data-index="{{ forloop.counter }}">
+                        <span class="rr-book-cover-title">{{ book.title|slice:":4" }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="rr-book-cover-shine"></div>
+                </div>
+                <div class="rr-book-info">
+                    <h4 class="rr-book-title" title="{{ book.title }}">{{ book.title }}</h4>
+                    <p class="rr-book-author">{{ book.author }}</p>
+                    <div class="rr-book-meta">
+                        <span class="rr-book-tag">{{ book.category.name|default:"未分类" }}</span>
+                        <span class="rr-book-borrows"><i class="bi bi-download me-1"></i>{{ book.borrow_count }}</span>
+                    </div>
+                </div>
+                <div class="rr-book-hover-actions">
+                    <span class="rr-hover-btn"><i class="bi bi-book-open me-1"></i>开始阅读</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if books_by_category %}
+        {% for cat, book_list in books_by_category.items %}
+        <section class="rr-section">
+            <div class="rr-section-hdr">
+                <h2 class="rr-section-title">
+                    {% if cat == "未分类" %}
+                        <i class="bi bi-book me-2"></i>未分类
+                    {% else %}
+                        <i class="bi bi-collection me-2"></i>{{ cat.name }}
+                    {% endif %}
+                    <span class="rr-section-count">{{ book_list|length }}册</span>
+                </h2>
+            </div>
+            <div class="rr-shelf">
+                {% for book in book_list %}
+                <div class="rr-book-card" onclick="location.href='{% url 'book_reader' book.id %}'">
+                    <div class="rr-book-spine"></div>
+                    <div class="rr-book-cover-wrap">
+                        {% if book.cover %}
+                        <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="rr-book-cover">
+                        {% else %}
+                        <div class="rr-book-cover rr-book-cover-gen" data-index="{{ forloop.counter }}">
+                            <span class="rr-book-cover-title">{{ book.title|slice:":4" }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="rr-book-cover-shine"></div>
+                    </div>
+                    <div class="rr-book-info">
+                        <h4 class="rr-book-title" title="{{ book.title }}">{{ book.title }}</h4>
+                        <p class="rr-book-author">{{ book.author }}</p>
+                        <div class="rr-book-meta">
+                            <span class="rr-book-tag">{{ cat.name|default:"未分类" }}</span>
+                            {% if book.current_stock > 0 %}
+                            <span class="rr-book-stock in"><i class="bi bi-check-circle me-1"></i>可借</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="rr-book-hover-actions">
+                        <span class="rr-hover-btn"><i class="bi bi-book-open me-1"></i>开始阅读</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    {% else %}
+    <section class="rr-section">
+        <div class="rr-empty">
+            <div class="rr-empty-icon">
+                <i class="bi bi-journal-x"></i>
+            </div>
+            <h3>未找到匹配的图书</h3>
+            <p>试试其他关键词，或浏览全部馆藏</p>
+            <a href="{% url 'reading_room' %}" class="rr-empty-btn">返回全部馆藏</a>
+        </div>
+    </section>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ========== READING ROOM ========== */
+.reading-room-app {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+}
+
+/* Hero */
+.rr-hero {
+    position: relative;
+    text-align: center;
+    padding: 3.5rem 2rem 3rem;
+    margin-bottom: 2rem;
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(0,240,255,0.06) 0%, rgba(255,0,255,0.04) 50%, rgba(0,240,255,0.06) 100%);
+    border: 1px solid rgba(0,240,255,0.12);
+}
+.rr-hero-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(0,240,255,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(255,0,255,0.06) 0%, transparent 60%);
+    pointer-events: none;
+}
+.rr-hero-content { position: relative; z-index: 1; }
+.rr-hero-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #e0f0ff;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.6rem;
+    text-shadow: 0 0 30px rgba(0,240,255,0.4), 0 0 60px rgba(0,240,255,0.15);
+}
+.rr-hero-icon { color: var(--cyan); margin: 0 0.5rem; }
+.rr-hero-sub {
+    color: rgba(200,220,240,0.7);
+    font-size: 1rem;
+    margin-bottom: 1.8rem;
+    letter-spacing: 0.04em;
+}
+.rr-hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-bottom: 2.2rem;
+}
+.rr-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.8rem 2rem;
+    background: rgba(0,240,255,0.05);
+    border: 1px solid rgba(0,240,255,0.1);
+    border-radius: 12px;
+    min-width: 110px;
+    transition: all 0.3s;
+}
+.rr-stat-item:hover {
+    background: rgba(0,240,255,0.1);
+    border-color: rgba(0,240,255,0.25);
+    transform: translateY(-2px);
+}
+.rr-stat-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1.1;
+}
+.rr-stat-lbl { font-size: 0.78rem; color: rgba(180,200,220,0.7); margin-top: 0.25rem; }
+
+/* Search */
+.rr-search { max-width: 550px; margin: 0 auto; }
+.rr-search-wrap {
+    display: flex;
+    align-items: center;
+    background: rgba(10,15,30,0.8);
+    border: 2px solid rgba(0,240,255,0.18);
+    border-radius: 40px;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+.rr-search-wrap:focus-within {
+    border-color: var(--cyan);
+    box-shadow: 0 0 20px rgba(0,240,255,0.15);
+}
+.rr-search-icon {
+    color: rgba(0,240,255,0.5);
+    font-size: 1.1rem;
+    padding-left: 1.2rem;
+    flex-shrink: 0;
+}
+.rr-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e0f0ff;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    outline: none;
+}
+.rr-search-input::placeholder { color: rgba(160,190,210,0.45); }
+.rr-search-btn {
+    background: linear-gradient(135deg, var(--cyan), rgba(0,200,220,0.8));
+    border: none;
+    color: #0a0f1e;
+    font-weight: 600;
+    padding: 0.75rem 1.6rem;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+    letter-spacing: 0.04em;
+}
+.rr-search-btn:hover { filter: brightness(1.15); }
+.rr-search-clear {
+    display: inline-block;
+    margin-top: 0.6rem;
+    font-size: 0.82rem;
+    color: rgba(255,0,255,0.6);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.rr-search-clear:hover { color: var(--magenta); }
+
+/* Category Pills */
+.rr-categories { margin-bottom: 2.5rem; }
+.rr-cat-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+.rr-cat-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1.1rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    background: rgba(10,15,30,0.6);
+    border: 1px solid rgba(0,240,255,0.1);
+    color: rgba(180,200,220,0.75);
+    transition: all 0.25s;
+    letter-spacing: 0.03em;
+}
+.rr-cat-pill:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(0,240,255,0.06);
+}
+.rr-cat-pill.active {
+    background: linear-gradient(135deg, rgba(0,240,255,0.18), rgba(255,0,255,0.1));
+    border-color: var(--cyan);
+    color: var(--cyan);
+    font-weight: 600;
+    box-shadow: 0 0 12px rgba(0,240,255,0.12);
+}
+
+/* Section */
+.rr-section { margin-bottom: 3rem; }
+.rr-section-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.2rem;
+    padding-left: 0.3rem;
+}
+.rr-section-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #d0e0f0;
+    letter-spacing: 0.05em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+.rr-section-title i { color: var(--cyan); }
+.rr-section-count {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: rgba(150,180,200,0.6);
+    margin-left: 0.7rem;
+    padding: 0.15rem 0.6rem;
+    background: rgba(0,240,255,0.06);
+    border-radius: 10px;
+}
+
+/* Shelf Grid */
+.rr-shelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.2rem;
+}
+
+/* Book Card */
+.rr-book-card {
+    position: relative;
+    background: linear-gradient(180deg, rgba(15,20,40,0.9) 0%, rgba(10,15,30,0.95) 100%);
+    border: 1px solid rgba(0,240,255,0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+    text-align: center;
+}
+.rr-book-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(0,240,255,0.3);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 25px rgba(0,240,255,0.12);
+}
+.rr-book-card.popular {
+    border-color: rgba(255,0,255,0.08);
+}
+.rr-book-card.popular:hover {
+    border-color: rgba(255,0,255,0.3);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 25px rgba(255,0,255,0.12);
+}
+
+/* Spine */
+.rr-book-spine {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--cyan), transparent);
+    opacity: 0.5;
+    transition: all 0.35s;
+}
+.rr-book-card:hover .rr-book-spine { opacity: 1; width: 4px; }
+.rr-book-card.popular .rr-book-spine { background: linear-gradient(180deg, var(--magenta), transparent); }
+
+/* Cover */
+.rr-book-cover-wrap {
+    position: relative;
+    padding: 1.2rem 1.2rem 0.5rem;
+    overflow: hidden;
+}
+.rr-book-cover {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+}
+.rr-book-cover-gen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(255,0,255,0.08));
+    border: 1px solid rgba(0,240,255,0.12);
+}
+.rr-book-cover-gen[data-index="1"] { background: linear-gradient(135deg, rgba(0,240,255,0.2), rgba(0,180,200,0.1)); }
+.rr-book-cover-gen[data-index="2"] { background: linear-gradient(135deg, rgba(255,0,255,0.15), rgba(200,0,200,0.08)); }
+.rr-book-cover-gen[data-index="3"] { background: linear-gradient(135deg, rgba(0,255,150,0.12), rgba(0,200,120,0.06)); }
+.rr-book-cover-gen[data-index="4"] { background: linear-gradient(135deg, rgba(255,180,0,0.14), rgba(200,140,0,0.07)); }
+.rr-book-cover-gen[data-index="5"] { background: linear-gradient(135deg, rgba(100,150,255,0.15), rgba(80,120,200,0.08)); }
+.rr-book-cover-gen[data-index="6"] { background: linear-gradient(135deg, rgba(255,100,150,0.14), rgba(200,80,120,0.07)); }
+.rr-book-cover-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: rgba(220,230,245,0.7);
+    letter-spacing: 0.15em;
+    text-shadow: 0 0 10px rgba(0,240,255,0.3);
+}
+.rr-book-cover-shine {
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+    transition: left 0.6s;
+}
+.rr-book-card:hover .rr-book-cover-shine { left: 120%; }
+
+/* Info */
+.rr-book-info { padding: 0.5rem 0.8rem 0.8rem; }
+.rr-book-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #d8e8f8;
+    margin: 0 0 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+.rr-book-author {
+    font-size: 0.75rem;
+    color: rgba(160,180,200,0.6);
+    margin: 0 0 0.5rem;
+}
+.rr-book-meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.rr-book-tag {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    background: rgba(0,240,255,0.07);
+    color: rgba(0,220,240,0.7);
+    border: 1px solid rgba(0,240,255,0.1);
+}
+.rr-book-borrows {
+    font-size: 0.68rem;
+    color: rgba(180,160,220,0.6);
+}
+.rr-book-stock.in {
+    font-size: 0.68rem;
+    color: rgba(0,220,150,0.7);
+}
+
+/* Hover Actions */
+.rr-book-hover-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.7rem;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+    transform: translateY(100%);
+    transition: transform 0.3s;
+    display: flex;
+    justify-content: center;
+}
+.rr-book-card:hover .rr-book-hover-actions { transform: translateY(0); }
+.rr-hover-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 1.2rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: linear-gradient(135deg, rgba(0,240,255,0.2), rgba(255,0,255,0.12));
+    border: 1px solid rgba(0,240,255,0.3);
+    color: var(--cyan);
+    transition: all 0.25s;
+}
+.rr-book-card:hover .rr-hover-btn:hover { background: rgba(0,240,255,0.25); }
+
+/* Empty */
+.rr-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+.rr-empty-icon {
+    font-size: 4rem;
+    color: rgba(0,240,255,0.1);
+    margin-bottom: 1rem;
+}
+.rr-empty h3 { color: rgba(180,200,220,0.6); font-size: 1.2rem; }
+.rr-empty p { color: rgba(140,160,180,0.5); font-size: 0.9rem; }
+.rr-empty-btn {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.5rem 1.5rem;
+    border-radius: 20px;
+    background: rgba(0,240,255,0.1);
+    border: 1px solid rgba(0,240,255,0.2);
+    color: var(--cyan);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+.rr-empty-btn:hover { background: rgba(0,240,255,0.18); color: #fff; }
+
+@media (max-width: 768px) {
+    .rr-hero-title { font-size: 1.5rem; }
+    .rr-hero-stats { gap: 1rem; }
+    .rr-stat-item { padding: 0.5rem 1rem; min-width: 80px; }
+    .rr-stat-val { font-size: 1.3rem; }
+    .rr-shelf { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.8rem; }
+    .rr-book-cover-gen { height: 170px; }
+    .rr-book-cover { height: 170px; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.rr-book-card');
+    cards.forEach(function(card, i) {
+        card.style.animationDelay = (i * 0.03) + 's';
+        card.style.animation = 'rrFadeIn 0.5s ease both';
+    });
+});
+</script>
+<style>
+@keyframes rrFadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}系统设置{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h4 class="page-title mb-0">系统设置</h4>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <h5 class="mb-4"><i class="bi bi-sliders me-2"></i>借阅参数配置</h5>
+            <form id="configForm" method="post" action="{% url 'system_config' %}">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="max_borrow_count" class="form-label">
+                        <i class="bi bi-bookmark-check me-1"></i>最大借阅数量
+                    </label>
+                    <input type="number" class="form-control" id="max_borrow_count" name="max_borrow_count" value="{{ configs.MAX_BORROW_COUNT.value|default:10 }}" min="1" max="100" style="max-width: 200px;">
+                    <div class="form-text">每个用户最多可以同时借阅的图书数量。</div>
+                </div>
+                <div class="mb-4">
+                    <label for="borrow_days" class="form-label">
+                        <i class="bi bi-calendar me-1"></i>借阅天数
+                    </label>
+                    <input type="number" class="form-control" id="borrow_days" name="borrow_days" value="{{ configs.BORROW_DAYS.value|default:30 }}" min="1" max="365" style="max-width: 200px;">
+                    <div class="form-text">单次借阅的默认天数，到期后需归还或续借。</div>
+                </div>
+                <div class="mb-4">
+                    <label for="renew_times" class="form-label">
+                        <i class="bi bi-arrow-repeat me-1"></i>最大续借次数
+                    </label>
+                    <input type="number" class="form-control" id="renew_times" name="renew_times" value="{{ configs.RENEW_TIMES.value|default:1 }}" min="0" max="10" style="max-width: 200px;">
+                    <div class="form-text">每本图书允许的最大续借次数，0 表示不允许续借。</div>
+                </div>
+                <div class="mb-4">
+                    <label for="renew_days" class="form-label">
+                        <i class="bi bi-calendar-plus me-1"></i>续借天数
+                    </label>
+                    <input type="number" class="form-control" id="renew_days" name="renew_days" value="{{ configs.RENEW_DAYS.value|default:30 }}" min="1" max="365" style="max-width: 200px;">
+                    <div class="form-text">每次续借可延长的天数。</div>
+                </div>
+                <div class="mb-4">
+                    <label for="fine_per_day" class="form-label">
+                        <i class="bi bi-cash-coin me-1"></i>每日罚款金额（元）
+                    </label>
+                    <input type="number" class="form-control" id="fine_per_day" name="fine_per_day" value="{{ configs.FINE_PER_DAY.value|default:'0.50' }}" min="0" max="100" step="0.01" style="max-width: 200px;">
+                    <div class="form-text">逾期后每天产生的罚款金额。</div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-1"></i>保存配置
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#configForm').on('submit', function(e) {
+        e.preventDefault();
+
+        var formData = $(this).serialize();
+        var btn = $(this).find('button[type="submit"]');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>保存中...');
+
+        $.ajax({
+            url: '{% url "system_config" %}',
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('系统配置已保存', 'success');
+                } else {
+                    showToast(response.msg || '保存失败', 'error');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>保存配置');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

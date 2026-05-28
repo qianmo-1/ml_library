@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}个人中心 - NOVA·图书馆{% endblock %}
+
+{% block content %}
+<div class="page-header-sci">
+    <h1 class="page-title-sci"><i class="bi bi-person-badge me-2"></i>个人中心</h1>
+    <p class="page-subtitle-sci">管理您的账户信息和借阅状态</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card-sci p-4 text-center">
+            <div class="mb-3">
+                <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#00f0ff,#ff00ff);color:#0a0a1a;display:inline-flex;align-items:center;justify-content:center;font-size:2.2rem;box-shadow:0 0 30px rgba(0,240,255,0.3);">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+            </div>
+            <h4 class="mb-1 fw-bold" style="color:var(--text-primary);">{{ user.username }}</h4>
+            <span class="badge-sci {% if user.role == 'admin' %}badge-admin{% else %}badge-user{% endif %} mb-3">
+                {% if user.role == 'admin' %}<i class="bi bi-shield-check me-1"></i>管理员{% else %}<i class="bi bi-person me-1"></i>普通用户{% endif %}
+            </span>
+            <hr style="border-color:rgba(0,240,255,0.08);">
+            <div class="text-start px-2">
+                <div class="d-flex justify-content-between mb-2" style="font-size:0.85rem;">
+                    <span class="text-muted"><i class="bi bi-phone me-2" style="color:var(--cyan);"></i>手机号</span>
+                    <span style="color:var(--text-secondary);">{{ user.phone|default:"未绑定" }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2" style="font-size:0.85rem;">
+                    <span class="text-muted"><i class="bi bi-envelope me-2" style="color:var(--cyan);"></i>邮箱</span>
+                    <span style="color:var(--text-secondary);">{{ user.email|default:"未绑定" }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2" style="font-size:0.85rem;">
+                    <span class="text-muted"><i class="bi bi-upc me-2" style="color:var(--cyan);"></i>学号/工号</span>
+                    <span style="color:var(--text-secondary);">{{ user.student_id|default:"未设置" }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2" style="font-size:0.85rem;">
+                    <span class="text-muted"><i class="bi bi-calendar-check me-2" style="color:var(--cyan);"></i>注册时间</span>
+                    <span style="color:var(--text-secondary);">{{ user.date_joined|date:"Y-m-d" }}</span>
+                </div>
+            </div>
+            <div class="row g-2 mt-3">
+                <div class="col-6">
+                    <a href="{% url 'my_borrows' %}" class="stat-card-mini" style="text-decoration:none;border-color:rgba(0,240,255,0.15);">
+                        <div class="scm-icon"><i class="bi bi-journal-bookmark"></i></div>
+                        <div class="scm-val" style="color:var(--cyan);">{{ user.borrow_count|default:0 }}</div>
+                        <div class="scm-lbl">当前借阅</div>
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="{% url 'my_fines' %}" class="stat-card-mini" style="text-decoration:none;border-color:rgba(255,0,255,0.15);">
+                        <div class="scm-icon"><i class="bi bi-cash-coin"></i></div>
+                        <div class="scm-val" style="color:#ff00ff;">&yen;{{ user.total_fine|default:0|floatformat:2 }}</div>
+                        <div class="scm-lbl">累计罚款</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card-sci">
+            <ul class="nav nav-tabs px-4 pt-3" id="profileTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="editInfoTab" data-bs-toggle="tab" data-bs-target="#editInfo" type="button" role="tab">
+                        <i class="bi bi-pencil-square me-1"></i>编辑资料
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="changePwdTab" data-bs-toggle="tab" data-bs-target="#changePwd" type="button" role="tab">
+                        <i class="bi bi-lock me-1"></i>修改密码
+                    </button>
+                </li>
+            </ul>
+            <div class="p-4">
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="editInfo" role="tabpanel">
+                        <form id="updateInfoForm" novalidate>
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="editPhone" class="form-label-sci">手机号</label>
+                                <div class="input-group-sci">
+                                    <span class="input-icon"><i class="bi bi-phone"></i></span>
+                                    <input type="text" class="form-control-sci" id="editPhone" name="phone" value="{{ user.phone|default:'' }}" placeholder="请输入手机号" maxlength="11">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editEmail" class="form-label-sci">邮箱</label>
+                                <div class="input-group-sci">
+                                    <span class="input-icon"><i class="bi bi-envelope"></i></span>
+                                    <input type="email" class="form-control-sci" id="editEmail" name="email" value="{{ user.email|default:'' }}" placeholder="请输入邮箱地址">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary-sci" id="saveInfoBtn">
+                                <i class="bi bi-check-lg me-1"></i>保存修改
+                            </button>
+                            <span id="infoStatus" class="ms-2" style="font-size:0.78rem;display:none;"></span>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="changePwd" role="tabpanel">
+                        <form id="changePasswordForm" novalidate>
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="oldPassword" class="form-label-sci">当前密码 <span class="text-danger">*</span></label>
+                                <div class="input-group-sci">
+                                    <span class="input-icon"><i class="bi bi-key"></i></span>
+                                    <input type="password" class="form-control-sci" id="oldPassword" name="old_password" placeholder="请输入当前密码" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="newPassword" class="form-label-sci">新密码 <span class="text-danger">*</span></label>
+                                <div class="input-group-sci">
+                                    <span class="input-icon"><i class="bi bi-lock"></i></span>
+                                    <input type="password" class="form-control-sci" id="newPassword" name="new_password" placeholder="请输入新密码（至少6位）" required minlength="6">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label-sci">确认新密码 <span class="text-danger">*</span></label>
+                                <div class="input-group-sci">
+                                    <span class="input-icon"><i class="bi bi-lock-fill"></i></span>
+                                    <input type="password" class="form-control-sci" id="confirmPassword" name="confirm_password" placeholder="请再次输入新密码" required>
+                                </div>
+                                <div class="invalid-feedback d-block" id="pwdMatchError" style="display:none !important;">两次输入的密码不一致</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary-sci" id="savePwdBtn">
+                                <i class="bi bi-check-lg me-1"></i>修改密码
+                            </button>
+                            <span id="pwdStatus" class="ms-2" style="font-size:0.78rem;display:none;"></span>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-sci mt-4 p-4">
+            <h5 style="font-family:'Orbitron',sans-serif;font-size:0.9rem;color:var(--cyan);letter-spacing:0.05em;margin-bottom:1rem;">
+                <i class="bi bi-shield-check me-2"></i>借阅规则
+            </h5>
+            <div class="row g-3">
+                <div class="col-sm-4">
+                    <div class="rule-item">
+                        <div class="rule-num">{{ borrow_rules.MAX_BORROW_COUNT|default:"10" }}</div>
+                        <div class="rule-label">最大借阅本数</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="rule-item">
+                        <div class="rule-num">{{ borrow_rules.BORROW_DAYS|default:"30" }}</div>
+                        <div class="rule-label">借阅天数</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="rule-item">
+                        <div class="rule-num">¥{{ borrow_rules.FINE_PER_DAY|default:"0.50" }}</div>
+                        <div class="rule-label">逾期罚款/天</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.badge-sci {
+    display:inline-block;padding:0.35em 0.9em;font-size:0.72rem;font-weight:600;border-radius:50px;letter-spacing:0.05em;
+}
+.badge-admin { background:rgba(255,0,255,0.15);color:#ff00ff;border:1px solid rgba(255,0,255,0.25); }
+.badge-user { background:rgba(0,240,255,0.1);color:var(--cyan);border:1px solid rgba(0,240,255,0.2); }
+.stat-card-mini {
+    background:rgba(10,15,30,0.6);border:1px solid rgba(0,240,255,0.08);border-radius:12px;
+    padding:1rem 0.5rem;text-align:center;transition:all 0.3s;display:block;
+}
+.stat-card-mini:hover { border-color:rgba(0,240,255,0.25);box-shadow:0 0 15px rgba(0,240,255,0.08);transform:translateY(-2px); }
+.scm-icon { font-size:1.2rem;margin-bottom:0.4rem;color:var(--text-muted); }
+.scm-val { font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:700; }
+.scm-lbl { font-size:0.68rem;color:var(--text-muted);letter-spacing:0.06em;text-transform:uppercase; }
+.rule-item { text-align:center; }
+.rule-num { font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:800;color:var(--cyan);text-shadow:0 0 8px rgba(0,240,255,0.2); }
+.rule-label { font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function() {
+    $('#updateInfoForm').on('submit', function(e) {
+        e.preventDefault();
+        var $btn = $('#saveInfoBtn');
+        var $status = $('#infoStatus');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>保存中...');
+        $status.hide();
+        $.ajax({
+            url: "{% url 'profile' %}",
+            type: "POST",
+            data: {
+                action: 'update_info',
+                phone: $('#editPhone').val(),
+                email: $('#editEmail').val(),
+                csrfmiddlewaretoken: csrftoken
+            },
+            success: function(res) {
+                if (res.code === 200) {
+                    showToast(res.msg || '资料更新成功', 'success');
+                    $status.css('color','var(--cyan)').text('✓ 保存成功').fadeIn();
+                } else {
+                    showToast(res.msg || '更新失败', 'error');
+                    $status.css('color','#ff00ff').text('✗ ' + (res.msg || '更新失败')).fadeIn();
+                }
+            },
+            error: function(xhr) {
+                var msg = '更新失败';
+                try { msg = JSON.parse(xhr.responseText).msg || msg; } catch(e) {}
+                showToast(msg, 'error');
+                $status.css('color','#ff00ff').text('✗ ' + msg).fadeIn();
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>保存修改');
+            }
+        });
+    });
+
+    $('#changePasswordForm').on('submit', function(e) {
+        e.preventDefault();
+        var pwd = $('#newPassword').val();
+        var confirmPwd = $('#confirmPassword').val();
+        if (pwd !== confirmPwd) {
+            $('#confirmPassword').addClass('is-invalid');
+            $('#pwdMatchError').show();
+            showToast('两次输入的密码不一致', 'error');
+            return;
+        }
+        $('#confirmPassword').removeClass('is-invalid');
+        $('#pwdMatchError').hide();
+        var $btn = $('#savePwdBtn');
+        var $status = $('#pwdStatus');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>修改中...');
+        $status.hide();
+        $.ajax({
+            url: "{% url 'profile' %}",
+            type: "POST",
+            data: {
+                action: 'change_password',
+                old_password: $('#oldPassword').val(),
+                new_password: pwd,
+                confirm_password: confirmPwd,
+                csrfmiddlewaretoken: csrftoken
+            },
+            success: function(res) {
+                if (res.code === 200) {
+                    showToast(res.msg || '密码修改成功', 'success');
+                    $('#changePasswordForm')[0].reset();
+                    $status.css('color','var(--cyan)').text('✓ 密码修改成功').fadeIn();
+                } else {
+                    showToast(res.msg || '密码修改失败', 'error');
+                    $status.css('color','#ff00ff').text('✗ ' + (res.msg || '失败')).fadeIn();
+                }
+            },
+            error: function(xhr) {
+                var msg = '密码修改失败';
+                try { msg = JSON.parse(xhr.responseText).msg || msg; } catch(e) {}
+                showToast(msg, 'error');
+                $status.css('color','#ff00ff').text('✗ ' + msg).fadeIn();
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>修改密码');
+            }
+        });
+    });
+
+    $('#confirmPassword').on('input', function() {
+        if ($(this).val() === $('#newPassword').val()) {
+            $(this).removeClass('is-invalid');
+            $('#pwdMatchError').hide();
+        }
+    });
+});
+</script>
+{% endblock %}

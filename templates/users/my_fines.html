@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}我的罚款 - NOVA·图书馆{% endblock %}
+
+{% block content %}
+<div class="page-header-sci">
+    <h1 class="page-title-sci"><i class="bi bi-cash-coin me-2"></i>我的罚款</h1>
+    <p class="page-subtitle-sci">查看和管理您的罚款记录</p>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card-sci">
+            <div class="stat-card-icon" style="background:rgba(255,0,255,0.12);color:#ff00ff;">
+                <i class="bi bi-cash-coin"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-card-label">未结清罚款</div>
+                <div class="stat-card-val" style="color:#ff00ff;">&yen;{{ total_unpaid|default:0|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="fineFilter">
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == '' or current_status == None %}active{% endif %}" href="{% url 'my_fines' %}">
+            <i class="bi bi-list-ul me-1"></i>全部
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'paid' %}active{% endif %}" href="{% url 'my_fines' %}?status=paid">
+            <i class="bi bi-check-circle me-1"></i>已结清
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_status == 'unpaid' %}active{% endif %}" href="{% url 'my_fines' %}?status=unpaid">
+            <i class="bi bi-exclamation-triangle me-1"></i>未结清
+        </a>
+    </li>
+</ul>
+
+{% if fines %}
+<div class="card-sci">
+    <div class="table-responsive">
+        <table class="table table-dark-sci">
+            <thead>
+                <tr>
+                    <th>书名</th>
+                    <th>罚款金额</th>
+                    <th>逾期天数</th>
+                    <th>状态</th>
+                    <th>生成时间</th>
+                    <th>结清时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fine in fines %}
+                <tr>
+                    <td>
+                        <a href="{% if fine.borrow_record and fine.borrow_record.book %}{% url 'book_detail' fine.borrow_record.book.id %}{% endif %}" class="text-link-sci">
+                            {{ fine.borrow_record.book.title|default:"-" }}
+                        </a>
+                    </td>
+                    <td><span class="text-danger-sci">&yen;{{ fine.fine_amount|floatformat:2 }}</span></td>
+                    <td>{{ fine.overdue_days|default:0 }} 天</td>
+                    <td>
+                        {% if fine.is_paid %}
+                        <span class="tag returned"><i class="bi bi-check-circle me-1"></i>已结清</span>
+                        {% else %}
+                        <span class="tag overdue"><i class="bi bi-exclamation-triangle me-1"></i>未结清</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ fine.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ fine.paid_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card-sci p-5 text-center">
+    <i class="bi bi-cash-coin" style="font-size:3rem;color:rgba(0,240,255,0.1);"></i>
+    <h5 class="mt-3" style="color:var(--text-muted);">暂无罚款记录</h5>
+    <p style="color:var(--text-muted);font-size:0.85rem;">保持良好的借阅习惯可避免罚款</p>
+</div>
+{% endif %}
+
+{% if fines.has_other_pages %}
+<nav class="pag-sci">
+    <ul class="pagination justify-content-center mb-0">
+        {% if fines.has_previous %}
+        <li class="page-item">
+            <a class="page-link-sci" href="?page={{ fines.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link-sci"><i class="bi bi-chevron-left"></i></span></li>
+        {% endif %}
+        {% for i in fines.paginator.page_range %}
+        {% if fines.number == i %}
+        <li class="page-item active"><span class="page-link-sci">{{ i }}</span></li>
+        {% else %}
+        <li class="page-item">
+            <a class="page-link-sci" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}">{{ i }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        {% if fines.has_next %}
+        <li class="page-item">
+            <a class="page-link-sci" href="?page={{ fines.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link-sci"><i class="bi bi-chevron-right"></i></span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

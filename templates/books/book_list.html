@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}图书列表 - NOVA·图书馆{% endblock %}
+
+{% block content %}
+<div class="page-header-sci">
+    <h1 class="page-title-sci"><i class="bi bi-book me-2"></i>藏书档案馆</h1>
+    <p class="page-subtitle-sci">共收录 {{ books.paginator.count|default:0 }} 条知识典籍</p>
+</div>
+
+<div class="search-bar-sci">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label-sci">关键词检索</label>
+            <div class="input-group-sci">
+                <span class="input-icon"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" class="form-control-sci" placeholder="书名 / 作者 / ISBN ..." value="{{ search_query }}">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label-sci">分类筛选</label>
+            <select name="category" class="form-select-sci">
+                <option value="">全部门类</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if category_id|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-sci-search w-100"><i class="bi bi-search me-1"></i>搜索</button>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'book_list' %}" class="btn btn-sci-reset w-100"><i class="bi bi-arrow-repeat me-1"></i>重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="row category-tabs mb-3">
+    <div class="col-12">
+        <a href="{% url 'book_list' %}" class="cat-chip {% if not category_id %}active{% endif %}">全部</a>
+        {% for cat in categories|slice:":8" %}
+        <a href="{% url 'book_list' %}?category={{ cat.id }}{% if search_query %}&q={{ search_query }}{% endif %}" 
+           class="cat-chip {% if category_id|stringformat:"s" == cat.id|stringformat:"s" %}active{% endif %}">
+            {{ cat.name }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for book in books %}
+    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+        <div class="book-card-sci">
+            <div class="book-cover-wrap">
+                {% if book.cover %}
+                <img src="{{ book.cover.url }}" alt="{{ book.title }}" class="book-cover-img">
+                {% else %}
+                <div class="book-cover-img book-cover-placeholder"><i class="bi bi-book" style="font-size:3rem;color:rgba(0,240,255,0.2);"></i></div>
+                {% endif %}
+                <div class="book-cover-overlay">
+                    <a href="{% url 'book_detail' book.id %}" class="btn btn-outline-sci btn-sm">
+                        <i class="bi bi-eye me-1"></i>查看详情
+                    </a>
+                    <button type="button" class="btn btn-outline-sci btn-sm quick-preview-btn" 
+                            data-cover="{% if book.cover %}{{ book.cover.url }}{% endif %}"
+                            data-title="{{ book.title }}"
+                            data-author="{{ book.author }}"
+                            data-stock="{{ book.current_stock }}"
+                            data-total="{{ book.total_stock }}"
+                            data-borrows="{{ book.borrow_count }}">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                </div>
+                <div class="book-status-bar">
+                    <span class="status-indicator {% if book.current_stock > 0 %}online{% else %}offline{% endif %}"></span>
+                    <span class="status-text">库存 {{ book.current_stock }}</span>
+                </div>
+            </div>
+            <div class="book-info-sci">
+                <h6 class="book-title-sci">{{ book.title }}</h6>
+                <p class="book-author-sci">{{ book.author }}</p>
+                <div class="book-tags">
+                    {% if book.category %}<span class="tag">{{ book.category.name }}</span>{% endif %}
+                    {% if book.current_stock <= 0 %}<span class="tag depleted">缺货</span>{% endif %}
+                </div>
+                {% if user.is_authenticated and book.current_stock > 0 %}
+                <button class="btn btn-borrow-sci borrow-btn" data-book-id="{{ book.id }}" data-book-title="{{ book.title }}">
+                    <i class="bi bi-download me-1"></i>立即借阅
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="empty-state">
+            <i class="bi bi-search" style="font-size:4rem;color:rgba(0,240,255,0.15);"></i>
+            <h5>未找到匹配的图书</h5>
+            <p>尝试其他关键词或分类筛选</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if books.has_other_pages %}
+<nav class="pag-sci">
+    <ul class="pagination justify-content-center">
+        {% if books.has_previous %}
+        <li class="page-item"><a class="page-link-sci" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}"><i class="bi bi-chevron-double-left"></i></a></li>
+        <li class="page-item"><a class="page-link-sci" href="?page={{ books.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}"><i class="bi bi-chevron-left"></i></a></li>
+        {% endif %}
+        {% for num in books.paginator.page_range %}
+            {% if num > books.number|add:"-3" and num < books.number|add:"3" %}
+            <li class="page-item {% if books.number == num %}active{% endif %}">
+                <a class="page-link-sci" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        {% if books.has_next %}
+        <li class="page-item"><a class="page-link-sci" href="?page={{ books.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}"><i class="bi bi-chevron-right"></i></a></li>
+        <li class="page-item"><a class="page-link-sci" href="?page={{ books.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}"><i class="bi bi-chevron-double-right"></i></a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<div class="modal fade" id="quickPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-preview-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qpTitle"><i class="bi bi-eye me-2"></i>快速预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="preview-layout">
+                    <div class="preview-cover-section" style="min-height:300px;">
+                        <img id="qpCover" src="" alt="" style="max-height:320px;">
+                    </div>
+                    <div class="preview-info-section">
+                        <h3 id="qpTitleText"></h3>
+                        <div class="preview-meta">
+                            <span id="qpAuthor" class="badge badge-primary"></span>
+                        </div>
+                        <div class="preview-stat-row">
+                            <div class="preview-stat">
+                                <div class="ps-val" id="qpStock">-</div>
+                                <div class="ps-lbl">在馆可借</div>
+                            </div>
+                            <div class="preview-stat">
+                                <div class="ps-val" id="qpTotal">-</div>
+                                <div class="ps-lbl">总库存</div>
+                            </div>
+                            <div class="preview-stat">
+                                <div class="ps-val" id="qpBorrows">-</div>
+                                <div class="ps-lbl">累计借阅</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(function(){
+    $('.borrow-btn').on('click',function(){
+        var btn=$(this),id=btn.data('book-id'),title=btn.data('book-title');
+        btn.prop('disabled',true).html('<span class="spinner-border spinner-border-sm me-1"></span>');
+        $.ajax({
+            url:'/borrow/borrow/'+id+'/',type:'POST',data:{book_id:id,csrfmiddlewaretoken:csrftoken},
+            success:function(r){
+                if(r.code===200){showToast('《'+title+'》借阅成功！','success');setTimeout(function(){location.reload();},1500);}
+                else{showToast(r.msg||'借阅失败','error');btn.prop('disabled',false).html('<i class="bi bi-download me-1"></i>立即借阅');}
+            },
+            error:function(xhr){
+                var m='服务器错误';try{var r=JSON.parse(xhr.responseText);m=r.msg||m;}catch(e){}
+                showToast(m,'error');btn.prop('disabled',false).html('<i class="bi bi-download me-1"></i>立即借阅');
+            }
+        });
+    });
+
+    $('.quick-preview-btn').on('click', function(e) {
+        e.stopPropagation();
+        var btn = $(this);
+        var cover = btn.data('cover');
+        var title = btn.data('title');
+        var author = btn.data('author');
+        var stock = btn.data('stock');
+        var total = btn.data('total');
+        var borrows = btn.data('borrows');
+
+        if (cover) {
+            $('#qpCover').attr('src', cover).show();
+        } else {
+            $('#qpCover').hide();
+        }
+        $('#qpTitleText').text(title);
+        $('#qpAuthor').text(author);
+        $('#qpStock').text(stock || '-');
+        $('#qpTotal').text(total || '-');
+        $('#qpBorrows').text(borrows || '-');
+        $('#quickPreviewModal').modal('show');
+    });
+});
+</script>
+{% endblock %}

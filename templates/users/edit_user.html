@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}编辑用户 - 图书借阅管理系统{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h4 class="page-title">编辑用户 - {{ target_user.username }}</h4>
+    <a href="{% url 'manage_users' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>返回用户列表
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="glass-card p-4">
+            <h5 class="mb-4"><i class="bi bi-pencil-square me-2"></i>编辑用户信息</h5>
+            <form id="editUserForm" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" value="{{ target_user.username }}" disabled>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">邮箱</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ target_user.email|default:'' }}" placeholder="请输入邮箱">
+                </div>
+                <div class="mb-3">
+                    <label for="phone" class="form-label">手机号</label>
+                    <input type="text" class="form-control" id="phone" name="phone" value="{{ target_user.phone|default:'' }}" placeholder="请输入手机号" maxlength="11">
+                </div>
+                <div class="mb-3">
+                    <label for="role" class="form-label">角色</label>
+                    <select class="form-select" id="role" name="role">
+                        <option value="user" {% if target_user.role == 'user' %}selected{% endif %}>普通用户</option>
+                        <option value="admin" {% if target_user.role == 'admin' %}selected{% endif %}>管理员</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <i class="bi bi-check-lg me-1"></i>保存
+                    </button>
+                    <a href="{% url 'manage_users' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg me-1"></i>取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function() {
+    $('#editUserForm').on('submit', function(e) {
+        e.preventDefault();
+        var $btn = $('#saveBtn');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>保存中...');
+        $.ajax({
+            url: "{% url 'edit_user' target_user.id %}",
+            type: "POST",
+            data: {
+                email: $('#email').val(),
+                phone: $('#phone').val(),
+                role: $('#role').val()
+            },
+            success: function(res) {
+                if (res.code === 200) {
+                    showToast(res.msg || '用户信息已更新', 'success');
+                    setTimeout(function() { window.location.href = "{% url 'manage_users' %}"; }, 800);
+                } else {
+                    showToast(res.msg || '更新失败', 'error');
+                    $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>保存');
+                }
+            },
+            error: function(xhr) {
+                var msg = '更新失败';
+                try { msg = JSON.parse(xhr.responseText).msg || msg; } catch(e) {}
+                showToast(msg, 'error');
+                $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>保存');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

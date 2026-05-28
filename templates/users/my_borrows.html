@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}我的借阅 - NOVA·图书馆{% endblock %}
+
+{% block content %}
+<div class="page-header-sci">
+    <h1 class="page-title-sci"><i class="bi bi-journal-bookmark me-2"></i>我的借阅</h1>
+    <p class="page-subtitle-sci">追踪你的每一段知识之旅</p>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <ul class="nav nav-tabs" id="borrowFilter">
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == '' or current_status == None %}active{% endif %}" href="{% url 'my_borrows' %}">
+                <i class="bi bi-list-ul me-1"></i>全部
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'borrowing' %}active{% endif %}" href="{% url 'my_borrows' %}?status=borrowing">
+                <i class="bi bi-bookmark-check me-1"></i>借阅中
+                <span class="tag borrowing ms-1" style="font-size:0.65rem;">{{ borrowing_count|default:0 }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'returned' %}active{% endif %}" href="{% url 'my_borrows' %}?status=returned">
+                <i class="bi bi-check-circle me-1"></i>已归还
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'overdue' %}active{% endif %}" href="{% url 'my_borrows' %}?status=overdue">
+                <i class="bi bi-exclamation-triangle me-1"></i>已逾期
+            </a>
+        </li>
+    </ul>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-sm btn-outline-secondary active" id="viewCardBtn" title="卡片视图">
+            <i class="bi bi-grid-3x3-gap"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="viewTableBtn" title="列表视图">
+            <i class="bi bi-list-ul"></i>
+        </button>
+    </div>
+</div>
+
+{% if borrows %}
+<div id="cardView">
+    <div class="borrow-timeline">
+        {% for borrow in borrows %}
+        <div class="timeline-item">
+            <div class="timeline-dot 
+                {% if borrow.status == 'borrowing' %}active{% elif borrow.status == 'overdue' %}danger{% elif borrow.status == 'returned' %}completed{% endif %}">
+            </div>
+            <div class="timeline-content">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <div class="time-title">{{ borrow.book.title }}</div>
+                        <div class="time-meta">
+                            <span><i class="bi bi-person me-1"></i>{{ borrow.book.author }}</span>
+                            <span><i class="bi bi-upc me-1"></i>{{ borrow.book.isbn }}</span>
+                            <span><i class="bi bi-calendar-check me-1"></i>{{ borrow.borrow_date|date:"Y-m-d" }}</span>
+                            <span><i class="bi bi-calendar-x me-1"></i>应还 {{ borrow.due_date|date:"Y-m-d" }}</span>
+                            {% if borrow.return_date %}
+                            <span><i class="bi bi-calendar2-check me-1"></i>归还 {{ borrow.return_date|date:"Y-m-d" }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if borrow.status == 'borrowing' %}
+                        <span class="time-badge borrowing">
+                            <span class="status-indicator online" style="width:6px;height:6px;"></span>借阅中
+                        </span>
+                        {% elif borrow.status == 'returned' %}
+                        <span class="time-badge returned">
+                            <i class="bi bi-check-circle-fill me-1" style="font-size:0.7rem;"></i>已归还
+                        </span>
+                        {% elif borrow.status == 'overdue' %}
+                        <span class="time-badge overdue">
+                            <span class="status-indicator offline" style="width:6px;height:6px;"></span>已逾期
+                        </span>
+                        {% endif %}
+
+                        {% if borrow.fine_amount %}
+                        <span class="badge badge-danger">&yen;{{ borrow.fine_amount|floatformat:2 }}</span>
+                        {% endif %}
+
+                        {% if borrow.status == 'borrowing' %}
+                        <button class="btn btn-outline-primary btn-sm renew-btn" data-id="{{ borrow.id }}" title="续借">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                        {% endif %}
+                        {% if borrow.status == 'borrowing' or borrow.status == 'overdue' %}
+                        <button class="btn btn-outline-success btn-sm return-btn" data-id="{{ borrow.id }}" title="归还">
+                            <i class="bi bi-box-arrow-in-down"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="tableView" style="display:none;">
+    <div class="table-responsive">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>封面</th>
+                    <th>书名</th>
+                    <th>作者</th>
+                    <th>借阅日期</th>
+                    <th>应还日期</th>
+                    <th>归还日期</th>
+                    <th>状态</th>
+                    <th>罚款</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for borrow in borrows %}
+                <tr>
+                    <td data-label="封面" style="width:60px;">
+                            {% if borrow.book.cover %}
+                            <img src="{{ borrow.book.cover.url }}" alt="" style="width:45px;height:65px;object-fit:cover;border-radius:4px;">
+                            {% else %}
+                            <div style="width:45px;height:65px;background:rgba(0,240,255,0.06);border-radius:4px;display:flex;align-items:center;justify-content:center;">
+                                <i class="bi bi-book" style="color:rgba(0,240,255,0.2);font-size:1.2rem;"></i>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td data-label="书名" class="fw-bold">{{ borrow.book.title }}</td>
+                    <td data-label="作者">{{ borrow.book.author|default:"-" }}</td>
+                    <td data-label="借阅日期">{{ borrow.borrow_date|date:"Y-m-d" }}</td>
+                    <td data-label="应还日期">{{ borrow.due_date|date:"Y-m-d" }}</td>
+                    <td data-label="归还日期">{{ borrow.return_date|date:"Y-m-d"|default:"-" }}</td>
+                    <td data-label="状态">
+                            {% if borrow.status == 'borrowing' %}
+                            <span class="status-dot active"></span>
+                            <span class="badge badge-info">借阅中</span>
+                            {% elif borrow.status == 'returned' %}
+                            <span class="status-dot" style="background:var(--text-muted);"></span>
+                            <span class="badge badge-success">已归还</span>
+                            {% elif borrow.status == 'overdue' %}
+                            <span class="status-dot danger"></span>
+                            <span class="badge badge-danger">已逾期</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="罚款">
+                        {% if borrow.fine_amount %}
+                        <span class="text-danger fw-bold">&yen;{{ borrow.fine_amount|floatformat:2 }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="操作">
+                            {% if borrow.status == 'borrowing' %}
+                            <button class="btn btn-outline-primary btn-sm renew-btn" data-id="{{ borrow.id }}">
+                                <i class="bi bi-arrow-repeat"></i> 续借
+                            </button>
+                            {% endif %}
+                            {% if borrow.status == 'borrowing' or borrow.status == 'overdue' %}
+                            <button class="btn btn-outline-success btn-sm return-btn" data-id="{{ borrow.id }}">
+                                <i class="bi bi-box-arrow-in-down"></i> 归还
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-journal-bookmark"></i>
+    <h5>暂无借阅记录</h5>
+    <p>去图书列表开启你的知识之旅吧</p>
+</div>
+{% endif %}
+
+{% if borrows.has_other_pages %}
+<nav class="pag-sci">
+    <ul class="pagination justify-content-center mb-0">
+        {% if borrows.has_previous %}
+        <li class="page-item">
+            <a class="page-link-sci" href="?page={{ borrows.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link-sci"><i class="bi bi-chevron-left"></i></span></li>
+        {% endif %}
+        {% for i in borrows.paginator.page_range %}
+            {% if borrows.number == i %}
+            <li class="page-item active"><span class="page-link-sci">{{ i }}</span></li>
+            {% elif i > borrows.number|add:"-3" and i < borrows.number|add:"3" %}
+            <li class="page-item">
+                <a class="page-link-sci" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}">{{ i }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        {% if borrows.has_next %}
+        <li class="page-item">
+            <a class="page-link-sci" href="?page={{ borrows.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link-sci"><i class="bi bi-chevron-right"></i></span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function(){
+    $('.renew-btn').on('click', function() {
+        var borrowId = $(this).data('id');
+        if (!confirm('确定要续借该书吗？续借后将延长归还期限。')) return;
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+        $.ajax({
+            url: '/borrow/renew/' + borrowId + '/',
+            type: 'POST',
+            data: { csrfmiddlewaretoken: csrftoken },
+            success: function(res) {
+                try {
+                    if (res.code === 200) {
+                        showToast(res.msg || '续借成功！新的归还日期已更新', 'success');
+                        setTimeout(function() { location.reload(); }, 1000);
+                    } else {
+                        showToast(res.msg || '续借失败', 'error');
+                        $btn.prop('disabled', false).html('续借');
+                    }
+                } catch(e) {
+                    console.error(e);
+                    $btn.prop('disabled', false).html('续借');
+                }
+            },
+            error: function(xhr) {
+                var m = '续借失败';
+                try { var r = JSON.parse(xhr.responseText); m = r.msg || m; } catch(e) {}
+                try { showToast(m, 'error'); } catch(e) { console.error(e); }
+                $btn.prop('disabled', false).html('续借');
+            }
+        });
+    });
+
+    $('.return-btn').on('click', function() {
+        var borrowId = $(this).data('id');
+        if (!confirm('确定要归还该书吗？如有逾期将自动计算罚款。')) return;
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+        $.ajax({
+            url: '/borrow/return/' + borrowId + '/',
+            type: 'POST',
+            data: { csrfmiddlewaretoken: csrftoken },
+            success: function(res) {
+                try {
+                    if (res.code === 200) {
+                        var msg = res.msg || '归还成功！';
+                        if (res.data && res.data.fine_amount && res.data.fine_amount > 0) {
+                            msg += ' 逾期 ' + res.data.overdue_days + ' 天，罚款 ¥' + res.data.fine_amount.toFixed(2);
+                        }
+                        showToast(msg, 'success');
+                        setTimeout(function() { location.reload(); }, 1200);
+                    } else {
+                        showToast(res.msg || '归还失败', 'error');
+                        $btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-down"></i> 归还');
+                    }
+                } catch(e) {
+                    console.error(e);
+                    $btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-down"></i> 归还');
+                }
+            },
+            error: function(xhr) {
+                var m = '归还失败';
+                try { var r = JSON.parse(xhr.responseText); m = r.msg || m; } catch(e) {}
+                try { showToast(m, 'error'); } catch(e) { console.error(e); }
+                $btn.prop('disabled', false).html('<i class="bi bi-box-arrow-in-down"></i> 归还');
+            }
+        });
+    });
+
+    $('#viewCardBtn').on('click', function() {
+        $(this).addClass('active');
+        $('#viewTableBtn').removeClass('active');
+        $('#cardView').show();
+        $('#tableView').hide();
+    });
+
+    $('#viewTableBtn').on('click', function() {
+        $(this).addClass('active');
+        $('#viewCardBtn').removeClass('active');
+        $('#tableView').show();
+        $('#cardView').hide();
+    });
+});
+</script>
+{% endblock %}
