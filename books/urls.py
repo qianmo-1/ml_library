@@ -17,4 +17,9 @@ urlpatterns = [
     path("category/add/", views.category_add_view, name="category_add"),
     path("category/edit/<int:cat_id>/", views.category_edit_view, name="category_edit"),
     path("category/delete/<int:cat_id>/", views.category_delete_view, name="category_delete"),
+    path("chapters/<int:book_id>/", views.chapter_manage_view, name="chapter_manage"),
+    path("chapters/<int:book_id>/add/", views.chapter_add_view, name="chapter_add"),
+    path("chapters/<int:book_id>/edit/<int:chapter_id>/", views.chapter_edit_view, name="chapter_edit"),
+    path("chapters/<int:book_id>/delete/<int:chapter_id>/", views.chapter_delete_view, name="chapter_delete"),
+    path("chapters/<int:book_id>/batch/", views.chapter_batch_view, name="chapter_batch"),
 ]

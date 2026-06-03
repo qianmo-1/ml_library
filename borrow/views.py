@@ -24,13 +24,18 @@ def _json_response(code, msg, data=None):
     payload = {"code": code, "msg": msg}
     if data is not None:
         payload["data"] = data
-    return JsonResponse(payload)
+    return JsonResponse(payload, status=code)
 
 
 def _get_client_ip(request):
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
+        ips = x_forwarded_for.split(",")
+        for ip in ips:
+            ip = ip.strip()
+            if ip and not ip.startswith(("10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "127.", "0.")):
+                return ip
+        return ips[0].strip() if ips else request.META.get("REMOTE_ADDR", "")
     return request.META.get("REMOTE_ADDR", "")
 
 
@@ -62,7 +67,7 @@ def _get_config_value(key, default):
 
 
 def _admin_required(request):
-    if request.user.role != "admin":
+    if request.user.role not in ("admin", "owner"):
         if _is_ajax(request):
             return _json_response(403, "您没有管理员权限")
         messages.error(request, "您没有管理员权限")
@@ -117,7 +122,8 @@ def borrow_book_view(request, book_id):
             )
 
             book.current_stock -= 1
-            book.save(update_fields=["current_stock"])
+            book.borrow_count += 1
+            book.save(update_fields=["current_stock", "borrow_count"])
 
             user.borrow_count += 1
             user.save(update_fields=["borrow_count"])
@@ -138,8 +144,8 @@ def borrow_book_view(request, book_id):
             "book_title": book.title,
         })
 
-    except Exception as e:
-        return _json_response(500, f"借阅失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "借阅失败，请稍后重试")
 
 
 @login_required
@@ -197,8 +203,8 @@ def renew_book_view(request, record_id):
             "renew_count": record.renew_count,
         })
 
-    except Exception as e:
-        return _json_response(500, f"续借失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "续借失败，请稍后重试")
 
 
 @login_required
@@ -288,8 +294,8 @@ def return_book_view(request, record_id):
 
         return _json_response(200, "归还成功", result_data)
 
-    except Exception as e:
-        return _json_response(500, f"归还失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "归还失败，请稍后重试")
 
 
 @login_required
@@ -329,8 +335,8 @@ def borrow_manage_view(request):
         }
         return render(request, "borrow/borrow_manage.html", context)
 
-    except Exception as e:
-        messages.error(request, f"获取借阅记录失败: {str(e)}")
+    except Exception:
+        messages.error(request, "获取借阅记录失败，请稍后重试")
         return render(request, "borrow/borrow_manage.html", {"records": [], "now": timezone.now()})
 
 
@@ -432,10 +438,10 @@ def confirm_return_view(request, record_id):
         messages.success(request, f"已确认归还《{record.book.title}》")
         return redirect("borrow_manage")
 
-    except Exception as e:
+    except Exception:
         if _is_ajax(request):
-            return _json_response(500, f"归还确认失败: {str(e)}")
-        messages.error(request, f"归还确认失败: {str(e)}")
+            return _json_response(500, "归还确认失败，请稍后重试")
+        messages.error(request, "归还确认失败，请稍后重试")
         return redirect("borrow_manage")
 
 
@@ -497,8 +503,8 @@ def overdue_check_view(request):
 
         return _json_response(200, f"逾期检查完成，共更新 {updated_count} 条记录", {"count": updated_count})
 
-    except Exception as e:
-        return _json_response(500, f"逾期检查失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "逾期检查失败，请稍后重试")
 
 
 @login_required
@@ -566,10 +572,10 @@ def pay_fine_view(request, record_id):
         messages.success(request, "罚款已结清")
         return redirect("fine_manage")
 
-    except Exception as e:
+    except Exception:
         if _is_ajax(request):
-            return _json_response(500, f"罚款结清失败: {str(e)}")
-        messages.error(request, f"罚款结清失败: {str(e)}")
+            return _json_response(500, "罚款结清失败，请稍后重试")
+        messages.error(request, "罚款结清失败，请稍后重试")
         return redirect("fine_manage")
 
 
@@ -605,6 +611,6 @@ def fine_manage_view(request):
         }
         return render(request, "borrow/fine_manage.html", context)
 
-    except Exception as e:
-        messages.error(request, f"获取罚款记录失败: {str(e)}")
+    except Exception:
+        messages.error(request, "获取罚款记录失败，请稍后重试")
         return render(request, "borrow/fine_manage.html", {"fines": []})

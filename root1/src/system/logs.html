@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}操作日志{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h4 class="page-title mb-0">操作日志</h4>
+</div>
+
+<div class="info-card mb-4">
+    <i class="bi bi-info-circle me-1"></i>系统自动记录所有管理员和用户的关键操作，日志不可删除，仅供审计查询使用。
+</div>
+
+<div class="search-bar">
+    <form method="get" action="{% url 'system_logs' %}" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">操作类型</label>
+            <select class="form-select" name="action">
+                <option value="">全部类型</option>
+                {% for action_code, action_label in action_choices %}
+                <option value="{{ action_code }}" {% if action_filter == action_code %}selected{% endif %}>{{ action_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">开始日期</label>
+            <input type="date" class="form-control" name="start_date" value="{{ start_date|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">结束日期</label>
+            <input type="date" class="form-control" name="end_date" value="{{ end_date|default:'' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">搜索用户</label>
+            <input type="text" class="form-control" name="user" placeholder="输入用户名..." value="{{ user_search|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100 mt-2">
+                <i class="bi bi-search me-1"></i>搜索
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">编号</th>
+                    <th>操作用户</th>
+                    <th>操作类型</th>
+                    <th>操作详情</th>
+                    <th>IP地址</th>
+                    <th>操作时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td>{{ log.user.username|default:"系统" }}</td>
+                    <td>
+                        {% if log.action == 'borrow' %}
+                        <span class="badge badge-primary">借阅</span>
+                        {% elif log.action == 'return' %}
+                        <span class="badge badge-success">归还</span>
+                        {% elif log.action == 'renew' %}
+                        <span class="badge badge-info">续借</span>
+                        {% elif log.action == 'create_book' %}
+                        <span class="badge badge-success">新增图书</span>
+                        {% elif log.action == 'edit_book' %}
+                        <span class="badge badge-warning">编辑图书</span>
+                        {% elif log.action == 'delete_book' %}
+                        <span class="badge badge-danger">删除图书</span>
+                        {% elif log.action == 'create_user' %}
+                        <span class="badge badge-success">新增用户</span>
+                        {% elif log.action == 'edit_user' %}
+                        <span class="badge badge-warning">编辑用户</span>
+                        {% elif log.action == 'freeze_user' %}
+                        <span class="badge badge-danger">冻结用户</span>
+                        {% elif log.action == 'unfreeze_user' %}
+                        <span class="badge badge-info">解封用户</span>
+                        {% elif log.action == 'pay_fine' %}
+                        <span class="badge badge-success">缴纳罚款</span>
+                        {% elif log.action == 'system_config' %}
+                        <span class="badge badge-primary">系统设置</span>
+                        {% elif log.action == 'data_backup' %}
+                        <span class="badge badge-info">数据备份</span>
+                        {% else %}
+                        <span class="badge badge-primary">{{ log.action }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.detail|default:"-"|truncatechars:80 }}</td>
+                    <td><code style="font-size: 0.8rem;">{{ log.ip_address|default:"-" }}</code></td>
+                    <td>{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h5>暂无操作日志</h5>
+                            <p>日志记录将在此显示</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if logs.has_other_pages %}
+<nav aria-label="操作日志分页" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if logs.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ logs.previous_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if user_search %}&user={{ user_search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+        </li>
+        {% endif %}
+
+        {% for num in logs.paginator.page_range %}
+            {% if logs.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > logs.number|add:'-3' and num < logs.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if user_search %}&user={{ user_search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        {% if logs.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ logs.next_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if user_search %}&user={{ user_search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% csrf_token %}
+{% endblock %}

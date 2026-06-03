@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("borrow/<int:book_id>/", views.borrow_book_view, name="borrow_book"),
+    path("book/<int:book_id>/", views.borrow_book_view, name="borrow_book"),
     path("renew/<int:record_id>/", views.renew_book_view, name="renew_book"),
     path("return/<int:record_id>/", views.return_book_view, name="return_book"),
     path("manage/", views.borrow_manage_view, name="borrow_manage"),

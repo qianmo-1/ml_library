@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}罚款管理{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h4 class="page-title mb-0">罚款管理</h4>
+</div>
+
+{% if unpaid_total %}
+<div class="info-card p-4 mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.12); color: var(--danger); width: 52px; height: 52px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div>
+            <div class="text-muted" style="font-size: 0.82rem;">未结清罚款总金额</div>
+            <div class="data-highlight">&yen;{{ unpaid_total|floatformat:2 }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="search-bar">
+    <form method="get" action="{% url 'fine_manage' %}" class="row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">搜索</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" name="q" placeholder="输入用户名或书名..." value="{{ q|default:'' }}">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">状态筛选</label>
+            <select class="form-select" name="paid">
+                <option value="">全部</option>
+                <option value="1" {% if paid_filter == '1' %}selected{% endif %}>已结清</option>
+                <option value="0" {% if paid_filter == '0' %}selected{% endif %}>未结清</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-search me-1"></i>搜索
+            </button>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'fine_manage' %}" class="btn btn-outline-secondary w-100">
+                <i class="bi bi-arrow-clockwise me-1"></i>重置
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>编号</th>
+                    <th>用户名</th>
+                    <th>书名</th>
+                    <th>罚款金额</th>
+                    <th>逾期天数</th>
+                    <th>状态</th>
+                    <th>生成时间</th>
+                    <th>结清时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fine in fines %}
+                <tr>
+                    <td>{{ fine.id }}</td>
+                    <td>{{ fine.user.username }}</td>
+                    <td>{{ fine.borrow_record.book.title }}</td>
+                    <td><span class="text-danger fw-bold">¥{{ fine.fine_amount|floatformat:2 }}</span></td>
+                    <td>{{ fine.overdue_days }} 天</td>
+                    <td>
+                        {% if fine.is_paid %}
+                        <span class="badge badge-success">已结清</span>
+                        {% else %}
+                        <span class="badge badge-danger">未结清</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ fine.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ fine.paid_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                    <td>
+                        {% if not fine.is_paid %}
+                        <button type="button" class="btn btn-outline-success btn-sm pay-fine-btn" data-fine-id="{{ fine.id }}" data-amount="{{ fine.fine_amount|floatformat:2 }}" data-username="{{ fine.user.username }}">
+                            <i class="bi bi-check-circle me-1"></i>标记已缴
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h5>暂无罚款记录</h5>
+                            <p>所有罚款均已结清</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if fines.has_other_pages %}
+<nav aria-label="罚款管理分页" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if fines.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ fines.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if paid_filter %}&paid={{ paid_filter }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+        </li>
+        {% endif %}
+
+        {% for num in fines.paginator.page_range %}
+            {% if fines.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > fines.number|add:'-3' and num < fines.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if paid_filter %}&paid={{ paid_filter }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        {% if fines.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ fines.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if paid_filter %}&paid={{ paid_filter }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.pay-fine-btn').on('click', function() {
+        var btn = $(this);
+        var fineId = btn.data('fine-id');
+        var amount = btn.data('amount');
+        var username = btn.data('username');
+
+        if (!confirm('确定要标记 ' + username + ' 的罚款 ¥' + amount + ' 为已缴吗？')) return;
+
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>处理中...');
+
+        $.ajax({
+            url: '/borrow/pay-fine/' + fineId + '/',
+            type: 'POST',
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('罚款已标记为已缴', 'success');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '标记失败', 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>标记已缴');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>标记已缴');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

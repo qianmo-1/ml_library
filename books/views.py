@@ -22,11 +22,11 @@ def _json_response(code, msg, data=None):
     payload = {"code": code, "msg": msg}
     if data is not None:
         payload["data"] = data
-    return JsonResponse(payload)
+    return JsonResponse(payload, status=code)
 
 
 def _admin_required(request, redirect_to="/"):
-    if request.user.role != "admin":
+    if request.user.role not in ("admin", "owner"):
         messages.error(request, "您没有管理员权限")
         return redirect(redirect_to)
     return None
@@ -35,7 +35,12 @@ def _admin_required(request, redirect_to="/"):
 def _get_client_ip(request):
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
+        ips = x_forwarded_for.split(",")
+        for ip in ips:
+            ip = ip.strip()
+            if ip and not ip.startswith(("10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "127.", "0.")):
+                return ip
+        return ips[0].strip() if ips else request.META.get("REMOTE_ADDR", "")
     return request.META.get("REMOTE_ADDR", "")
 
 
@@ -66,8 +71,8 @@ def book_list_view(request):
             "category_id": category_id,
         }
         return render(request, "books/book_list.html", context)
-    except Exception as e:
-        messages.error(request, f"获取图书列表失败: {str(e)}")
+    except Exception:
+        messages.error(request, "获取图书列表失败，请稍后重试")
         return render(request, "books/book_list.html", {"books": [], "categories": []})
 
 
@@ -113,8 +118,8 @@ def reading_room_view(request):
             "popular_books": sorted(all_books, key=lambda b: b.borrow_count, reverse=True)[:6],
             "recent_books": list(queryset.order_by("-created_at")[:6]),
         })
-    except Exception as e:
-        messages.error(request, f"加载阅览室失败: {str(e)}")
+    except Exception:
+        messages.error(request, "加载阅览室失败，请稍后重试")
         return render(request, "books/reading_room.html", {
             "categories": [], "books_by_category": {}, "all_books": [],
             "total_books": 0, "category_id": "", "search_query": "",
@@ -160,8 +165,8 @@ def book_detail_view(request, book_id):
             "first_chapter": first_chapter,
             "chapter_count": chapter_count,
         })
-    except Exception as e:
-        messages.error(request, f"获取图书详情失败: {str(e)}")
+    except Exception:
+        messages.error(request, "获取图书详情失败，请稍后重试")
         return redirect("book_list")
 
 
@@ -199,8 +204,8 @@ def chapter_content_view(request, book_id, chapter_index):
                 "total_chapters": total_chapters,
             },
         })
-    except Exception as e:
-        return JsonResponse({"code": 500, "msg": f"获取章节内容失败: {str(e)}"})
+    except Exception:
+        return JsonResponse({"code": 500, "msg": "获取章节内容失败，请稍后重试"})
 
 
 
@@ -249,8 +254,8 @@ def book_reader_view(request, book_id):
             "first_title": first_title,
             "start_chapter": start_chapter,
         })
-    except Exception as e:
-        messages.error(request, f"打开阅读器失败: {str(e)}")
+    except Exception:
+        messages.error(request, "打开阅读器失败，请稍后重试")
         return redirect("book_list")
 
 
@@ -291,8 +296,8 @@ def book_manage_view(request):
             "category": category_id,
         }
         return render(request, "books/book_manage.html", context)
-    except Exception as e:
-        messages.error(request, f"获取图书管理列表失败: {str(e)}")
+    except Exception:
+        messages.error(request, "获取图书管理列表失败，请稍后重试")
         return render(request, "books/book_manage.html", {"books": [], "categories": []})
 
 
@@ -320,6 +325,15 @@ def book_add_view(request):
                 messages.error(request, "书名、作者、ISBN 为必填项")
                 categories = Category.objects.all()
                 return render(request, "books/book_add.html", {"categories": categories})
+
+            if cover:
+                ext = cover.name.rsplit(".", 1)[-1].lower() if "." in cover.name else ""
+                if ext not in ("jpg", "jpeg", "png", "gif", "webp"):
+                    if _is_ajax(request):
+                        return _json_response(400, "封面仅支持 JPG/PNG/GIF/WebP 格式")
+                    messages.error(request, "封面仅支持 JPG/PNG/GIF/WebP 格式")
+                    categories = Category.objects.all()
+                    return render(request, "books/book_add.html", {"categories": categories})
 
             if Book.objects.filter(isbn=isbn, is_deleted=False).exists():
                 if _is_ajax(request):
@@ -368,18 +382,18 @@ def book_add_view(request):
                 return _json_response(200, "添加成功", {"id": book.id})
             messages.success(request, f"图书《{book.title}》添加成功")
             return redirect("book_manage")
-        except Exception as e:
+        except Exception:
             if _is_ajax(request):
-                return _json_response(500, f"添加失败: {str(e)}")
-            messages.error(request, f"添加失败: {str(e)}")
+                return _json_response(500, "添加失败，请稍后重试")
+            messages.error(request, "添加失败，请稍后重试")
             categories = Category.objects.all()
             return render(request, "books/book_add.html", {"categories": categories})
 
     try:
         categories = Category.objects.all()
         return render(request, "books/book_add.html", {"categories": categories})
-    except Exception as e:
-        messages.error(request, f"加载页面失败: {str(e)}")
+    except Exception:
+        messages.error(request, "加载页面失败，请稍后重试")
         return render(request, "books/book_add.html", {"categories": []})
 
 
@@ -469,6 +483,13 @@ def book_edit_view(request, book_id):
                 book.current_stock = new_current
 
             if cover:
+                ext = cover.name.rsplit(".", 1)[-1].lower() if "." in cover.name else ""
+                if ext not in ("jpg", "jpeg", "png", "gif", "webp"):
+                    if _is_ajax(request):
+                        return _json_response(400, "封面仅支持 JPG/PNG/GIF/WebP 格式")
+                    messages.error(request, "封面仅支持 JPG/PNG/GIF/WebP 格式")
+                    categories = Category.objects.all()
+                    return render(request, "books/book_edit.html", {"book": book, "categories": categories})
                 book.cover = cover
                 detail_parts.append("封面已更新")
 
@@ -489,18 +510,18 @@ def book_edit_view(request, book_id):
                 return _json_response(200, "修改成功", {"id": book.id})
             messages.success(request, f"图书《{book.title}》修改成功")
             return redirect("book_manage")
-        except Exception as e:
+        except Exception:
             if _is_ajax(request):
-                return _json_response(500, f"修改失败: {str(e)}")
-            messages.error(request, f"修改失败: {str(e)}")
+                return _json_response(500, "修改失败，请稍后重试")
+            messages.error(request, "修改失败，请稍后重试")
             categories = Category.objects.all()
             return render(request, "books/book_edit.html", {"book": book, "categories": categories})
 
     try:
         categories = Category.objects.all()
         return render(request, "books/book_edit.html", {"book": book, "categories": categories})
-    except Exception as e:
-        messages.error(request, f"加载页面失败: {str(e)}")
+    except Exception:
+        messages.error(request, "加载页面失败，请稍后重试")
         return render(request, "books/book_edit.html", {"book": book, "categories": []})
 
 
@@ -537,8 +558,182 @@ def book_delete_view(request, book_id):
             pass
 
         return _json_response(200, "删除成功")
-    except Exception as e:
-        return _json_response(500, f"删除失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "删除失败，请稍后重试")
+
+
+@login_required
+def chapter_manage_view(request, book_id):
+    admin_check = _admin_required(request)
+    if admin_check:
+        return admin_check
+    try:
+        book = get_object_or_404(Book, id=book_id, is_deleted=False)
+        chapters = ChapterContent.objects.filter(book=book).order_by("chapter_index")
+        return render(request, "books/book_chapters.html", {"book": book, "chapters": chapters})
+    except Exception:
+        messages.error(request, "加载章节管理页面失败，请稍后重试")
+        return redirect("book_manage")
+
+
+@login_required
+def chapter_add_view(request, book_id):
+    admin_check = _admin_required(request)
+    if admin_check:
+        return admin_check
+    try:
+        book = get_object_or_404(Book, id=book_id, is_deleted=False)
+    except Exception:
+        return _json_response(404, "图书不存在")
+
+    if request.method != "POST":
+        return _json_response(405, "仅支持POST请求")
+
+    try:
+        chapter_title = request.POST.get("chapter_title", "").strip()
+        chapter_index = request.POST.get("chapter_index", "").strip()
+        content = request.POST.get("content", "").strip()
+
+        if not chapter_title:
+            return _json_response(400, "请输入章节标题")
+        if not chapter_index:
+            return _json_response(400, "请输入章节序号")
+
+        try:
+            chapter_index = int(chapter_index)
+        except (ValueError, TypeError):
+            return _json_response(400, "章节序号必须为数字")
+
+        if ChapterContent.objects.filter(book=book, chapter_index=chapter_index).exists():
+            return _json_response(400, f"第 {chapter_index} 章已存在，请使用其他序号或编辑已有章节")
+
+        chapter = ChapterContent.objects.create(
+            book=book, chapter_index=chapter_index,
+            chapter_title=chapter_title, content=content,
+        )
+
+        try:
+            OperationLog.objects.create(
+                user=request.user, action="create_chapter",
+                detail=f"为《{book.title}》新增第{chapter_index}章「{chapter_title}」",
+                ip_address=_get_client_ip(request),
+            )
+        except Exception:
+            pass
+
+        return _json_response(200, "章节添加成功", {"id": chapter.id, "chapter_index": chapter_index})
+    except Exception:
+        return _json_response(500, "添加失败，请稍后重试")
+
+
+@login_required
+def chapter_edit_view(request, book_id, chapter_id):
+    admin_check = _admin_required(request)
+    if admin_check:
+        return admin_check
+    try:
+        chapter = get_object_or_404(ChapterContent, id=chapter_id, book_id=book_id)
+    except Exception:
+        return _json_response(404, "章节不存在")
+
+    if request.method != "POST":
+        return _json_response(405, "仅支持POST请求")
+
+    try:
+        chapter_title = request.POST.get("chapter_title", "").strip()
+        content = request.POST.get("content", "").strip()
+
+        if not chapter_title:
+            return _json_response(400, "请输入章节标题")
+
+        chapter.chapter_title = chapter_title
+        chapter.content = content
+        chapter.save()
+
+        try:
+            OperationLog.objects.create(
+                user=request.user, action="edit_chapter",
+                detail=f"编辑《{chapter.book.title}》第{chapter.chapter_index}章",
+                ip_address=_get_client_ip(request),
+            )
+        except Exception:
+            pass
+
+        return _json_response(200, "章节更新成功")
+    except Exception:
+        return _json_response(500, "更新失败，请稍后重试")
+
+
+@login_required
+def chapter_delete_view(request, book_id, chapter_id):
+    admin_check = _admin_required(request)
+    if admin_check:
+        return admin_check
+    try:
+        chapter = get_object_or_404(ChapterContent, id=chapter_id, book_id=book_id)
+    except Exception:
+        return _json_response(404, "章节不存在")
+
+    try:
+        book_title = chapter.book.title
+        ch_index = chapter.chapter_index
+        chapter.delete()
+
+        try:
+            OperationLog.objects.create(
+                user=request.user, action="delete_chapter",
+                detail=f"删除《{book_title}》第{ch_index}章",
+                ip_address=_get_client_ip(request),
+            )
+        except Exception:
+            pass
+
+        return _json_response(200, "章节删除成功")
+    except Exception:
+        return _json_response(500, "删除失败，请稍后重试")
+
+
+@login_required
+def chapter_batch_view(request, book_id):
+    admin_check = _admin_required(request)
+    if admin_check:
+        return admin_check
+    try:
+        book = get_object_or_404(Book, id=book_id, is_deleted=False)
+    except Exception:
+        return _json_response(404, "图书不存在")
+
+    if request.method != "POST":
+        return _json_response(405, "仅支持POST请求")
+
+    try:
+        body = json.loads(request.body)
+        chapters_data = body.get("chapters", [])
+        if not chapters_data:
+            return _json_response(400, "请提供章节数据")
+
+        created = 0
+        for ch in chapters_data:
+            idx = ch.get("chapter_index")
+            title = ch.get("chapter_title", "").strip()
+            content = ch.get("content", "")
+            if not title or idx is None:
+                continue
+            try:
+                idx = int(idx)
+            except (ValueError, TypeError):
+                continue
+            obj, is_new = ChapterContent.objects.update_or_create(
+                book=book, chapter_index=idx,
+                defaults={"chapter_title": title, "content": content},
+            )
+            if is_new:
+                created += 1
+
+        return _json_response(200, f"成功更新 {len(chapters_data)} 章，新增 {created} 章",
+                            {"created": created, "updated": len(chapters_data) - created})
+    except Exception:
+        return _json_response(500, "批量导入失败，请稍后重试")
 
 
 @login_required
@@ -594,8 +789,8 @@ def book_batch_delete_view(request):
             f"成功删除 {len(success_ids)} 本，失败 {len(failed_items)} 本",
             {"success": success_ids, "failed": failed_items},
         )
-    except Exception as e:
-        return _json_response(500, f"批量删除失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "批量删除失败，请稍后重试")
 
 
 @login_required
@@ -609,8 +804,8 @@ def category_manage_view(request):
             book_count=Count("book", filter=Q(book__is_deleted=False))
         ).order_by("-created_at")
         return render(request, "books/category_manage.html", {"categories": categories})
-    except Exception as e:
-        messages.error(request, f"获取分类列表失败: {str(e)}")
+    except Exception:
+        messages.error(request, "获取分类列表失败，请稍后重试")
         return render(request, "books/category_manage.html", {"categories": []})
 
 
@@ -647,7 +842,7 @@ def category_add_view(request):
         try:
             OperationLog.objects.create(
                 user=request.user,
-                action="create_book",
+                action="create_category",
                 detail=f"新增分类「{category.name}」",
                 ip_address=_get_client_ip(request),
             )
@@ -658,10 +853,10 @@ def category_add_view(request):
             return _json_response(200, "添加成功", {"id": category.id, "name": category.name})
         messages.success(request, f"分类「{category.name}」添加成功")
         return redirect("category_manage")
-    except Exception as e:
+    except Exception:
         if _is_ajax(request):
-            return _json_response(500, f"添加失败: {str(e)}")
-        messages.error(request, f"添加失败: {str(e)}")
+            return _json_response(500, "添加失败，请稍后重试")
+        messages.error(request, "添加失败，请稍后重试")
         return redirect("category_manage")
 
 
@@ -706,7 +901,7 @@ def category_edit_view(request, cat_id):
         try:
             OperationLog.objects.create(
                 user=request.user,
-                action="edit_book",
+                action="edit_category",
                 detail=f"编辑分类「{old_name}」->「{category.name}」",
                 ip_address=_get_client_ip(request),
             )
@@ -717,10 +912,10 @@ def category_edit_view(request, cat_id):
             return _json_response(200, "修改成功", {"id": category.id, "name": category.name})
         messages.success(request, f"分类「{category.name}」修改成功")
         return redirect("category_manage")
-    except Exception as e:
+    except Exception:
         if _is_ajax(request):
-            return _json_response(500, f"修改失败: {str(e)}")
-        messages.error(request, f"修改失败: {str(e)}")
+            return _json_response(500, "修改失败，请稍后重试")
+        messages.error(request, "修改失败，请稍后重试")
         return redirect("category_manage")
 
 
@@ -749,7 +944,7 @@ def category_delete_view(request, cat_id):
         try:
             OperationLog.objects.create(
                 user=request.user,
-                action="delete_book",
+                action="delete_category",
                 detail=f"删除分类「{category_name}」",
                 ip_address=_get_client_ip(request),
             )
@@ -757,5 +952,5 @@ def category_delete_view(request, cat_id):
             pass
 
         return _json_response(200, "删除成功")
-    except Exception as e:
-        return _json_response(500, f"删除失败: {str(e)}")
+    except Exception:
+        return _json_response(500, "删除失败，请稍后重试")

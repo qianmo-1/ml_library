@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}章节管理 - {{ book.title }}{% endblock %}
+
+{% block content %}
+<a href="javascript:history.back()" class="btn btn-sm btn-outline-sci back-btn-sci mb-3">
+    <i class="bi bi-arrow-left me-1"></i>返回
+</a>
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h4 class="page-title mb-1">章节管理</h4>
+        <p class="text-muted mb-0" style="font-size: 0.9rem;">
+            《{{ book.title }}》 — 共 <span id="chCount">{{ chapters|length }}</span> 章
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-sci btn-sm" id="batchImportBtn">
+            <i class="bi bi-upload me-1"></i>批量导入
+        </button>
+        <button class="btn btn-primary" id="addChapterBtn">
+            <i class="bi bi-plus-lg me-1"></i>新增章节
+        </button>
+    </div>
+</div>
+
+<div class="glass-card p-4">
+    <div class="table-responsive">
+        <table class="table chapter-table">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">序号</th>
+                    <th>章节标题</th>
+                    <th style="width: 100px;">内容长度</th>
+                    <th style="width: 140px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="chapterTbody">
+                {% for ch in chapters %}
+                <tr data-ch-id="{{ ch.id }}" data-ch-index="{{ ch.chapter_index }}">
+                    <td>
+                        <span class="badge badge-sci">第 {{ ch.chapter_index }} 章</span>
+                    </td>
+                    <td class="fw-semibold chapter-title-cell">{{ ch.chapter_title }}</td>
+                    <td>
+                        <span class="text-muted small">{{ ch.content|length }} 字</span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-outline-primary btn-sm edit-chapter-btn" data-ch-id="{{ ch.id }}" data-ch-index="{{ ch.chapter_index }}" data-ch-title="{{ ch.chapter_title }}" data-content="{{ ch.content }}" title="编辑">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm delete-chapter-btn" data-ch-id="{{ ch.id }}" data-ch-index="{{ ch.chapter_index }}" data-ch-title="{{ ch.chapter_title }}" title="删除">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr id="emptyRow">
+                    <td colspan="4">
+                        <div class="empty-state py-5">
+                            <i class="bi bi-journal-x" style="font-size: 3rem; color: rgba(255,255,255,0.15);"></i>
+                            <h5 class="mt-3" style="color: #777;">暂无章节内容</h5>
+                            <p class="text-muted">点击"新增章节"或"批量导入"为本书添加内容</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="chapterModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chapterModalTitle">新增章节</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="chapterForm" novalidate>
+                    <input type="hidden" id="chEditId">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label for="chapterIndex" class="form-label">章节序号 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="chapterIndex" min="1" placeholder="如: 1" required>
+                        </div>
+                        <div class="col-md-9">
+                            <label for="chapterTitle" class="form-label">章节标题 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="chapterTitle" placeholder="如: 第一章 引言" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="chapterContent" class="form-label">章节内容</label>
+                        <textarea class="form-control" id="chapterContent" rows="16" placeholder="请输入或粘贴章节内容..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveChapterBtn">
+                    <i class="bi bi-check-lg me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="batchModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-upload me-2"></i>批量导入章节
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    每行一个章节，格式为：<code>章节序号 | 章节标题 | 章节内容</code><br>
+                    序号、标题、内容之间用 <code>|</code> 分隔
+                </p>
+                <textarea class="form-control" id="batchContent" rows="20" placeholder="1 | 第一章 引言 | 这是第一章的内容...&#10;2 | 第二章 正文 | 这是第二章的内容..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveBatchBtn">
+                    <i class="bi bi-upload me-1"></i>批量导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteChapterMsg">确定要删除该章节吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteChapterBtn">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function() {
+    var bookId = {{ book.id }};
+    var deleteTargetId = null;
+    var isEditMode = false;
+
+    var chModal = new bootstrap.Modal('#chapterModal');
+    var batchModal = new bootstrap.Modal('#batchModal');
+    var deleteModal = new bootstrap.Modal('#deleteConfirmModal');
+
+    function refreshPage() { location.reload(); }
+
+    $('#addChapterBtn').on('click', function() {
+        isEditMode = false;
+        $('#chapterModalTitle').text('新增章节');
+        $('#chEditId').val('');
+        $('#chapterIndex').val('').prop('disabled', false);
+        $('#chapterTitle').val('');
+        $('#chapterContent').val('');
+        chModal.show();
+    });
+
+    $(document).on('click', '.edit-chapter-btn', function() {
+        isEditMode = true;
+        var btn = $(this);
+        $('#chapterModalTitle').text('编辑章节');
+        $('#chEditId').val(btn.data('ch-id'));
+        $('#chapterIndex').val(btn.data('ch-index')).prop('disabled', true);
+        $('#chapterTitle').val(btn.data('ch-title'));
+        $('#chapterContent').val(btn.data('content'));
+        chModal.show();
+    });
+
+    $('#saveChapterBtn').on('click', function() {
+        var index = $('#chapterIndex').val().trim();
+        var title = $('#chapterTitle').val().trim();
+        var content = $('#chapterContent').val();
+
+        if (!title) { showToast('请输入章节标题', 'warning'); return; }
+        if (!isEditMode && !index) { showToast('请输入章节序号', 'warning'); return; }
+
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>保存中...');
+
+        var url, data;
+        if (isEditMode) {
+            url = '/books/chapters/' + bookId + '/edit/' + $('#chEditId').val() + '/';
+            data = { chapter_title: title, content: content };
+        } else {
+            url = '/books/chapters/' + bookId + '/add/';
+            data = { chapter_index: index, chapter_title: title, content: content };
+        }
+
+        $.ajax({
+            url: url, type: 'POST', data: data,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(r) {
+                if (r.code === 200) { chModal.hide(); showToast(r.msg, 'success'); setTimeout(refreshPage, 800); }
+                else { showToast(r.msg, 'error'); btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>保存'); }
+            },
+            error: function(xhr) {
+                var m = '操作失败'; try { var r = JSON.parse(xhr.responseText); m = r.msg || m; } catch(e) {}
+                showToast(m, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>保存');
+            }
+        });
+    });
+
+    $(document).on('click', '.delete-chapter-btn', function() {
+        deleteTargetId = $(this).data('ch-id');
+        var idx = $(this).data('ch-index');
+        var title = $(this).data('ch-title');
+        $('#deleteChapterMsg').text('确定要删除第 ' + idx + ' 章「' + title + '」吗？此操作不可撤销。');
+        deleteModal.show();
+    });
+
+    $('#confirmDeleteChapterBtn').on('click', function() {
+        if (!deleteTargetId) return;
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>删除中...');
+        $.ajax({
+            url: '/books/chapters/' + bookId + '/delete/' + deleteTargetId + '/',
+            type: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(r) {
+                deleteModal.hide();
+                if (r.code === 200) { showToast(r.msg, 'success'); setTimeout(refreshPage, 800); }
+                else { showToast(r.msg, 'error'); }
+                btn.prop('disabled', false).html('确认删除');
+            },
+            error: function(xhr) {
+                var m = '删除失败'; try { var r = JSON.parse(xhr.responseText); m = r.msg || m; } catch(e) {}
+                showToast(m, 'error');
+                btn.prop('disabled', false).html('确认删除');
+            }
+        });
+    });
+
+    $('#batchImportBtn').on('click', function() {
+        $('#batchContent').val('');
+        batchModal.show();
+    });
+
+    $('#saveBatchBtn').on('click', function() {
+        var text = $('#batchContent').val().trim();
+        if (!text) { showToast('请输入章节数据', 'warning'); return; }
+
+        var lines = text.split('\n');
+        var chapters = [];
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            var parts = line.split('|');
+            if (parts.length < 3) continue;
+            var idx = parseInt(parts[0].trim());
+            if (isNaN(idx)) continue;
+            chapters.push({
+                chapter_index: idx,
+                chapter_title: parts[1].trim(),
+                content: parts.slice(2).join('|').trim()
+            });
+        }
+
+        if (chapters.length === 0) { showToast('未识别到有效章节数据', 'warning'); return; }
+
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>导入中...');
+
+        $.ajax({
+            url: '/books/chapters/' + bookId + '/batch/',
+            type: 'POST',
+            data: JSON.stringify({ chapters: chapters }),
+            contentType: 'application/json',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(r) {
+                if (r.code === 200) { batchModal.hide(); showToast(r.msg, 'success'); setTimeout(refreshPage, 800); }
+                else { showToast(r.msg, 'error'); btn.prop('disabled', false).html('<i class="bi bi-upload me-1"></i>批量导入'); }
+            },
+            error: function(xhr) {
+                var m = '导入失败'; try { var r = JSON.parse(xhr.responseText); m = r.msg || m; } catch(e) {}
+                showToast(m, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-upload me-1"></i>批量导入');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

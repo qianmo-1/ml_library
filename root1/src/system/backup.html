@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}数据备份{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="page-title mb-0">数据备份</h4>
+    <button type="button" id="createBackupBtn" class="btn btn-primary">
+        <i class="bi bi-cloud-arrow-up me-1"></i>创建备份
+    </button>
+</div>
+
+<div class="info-card mb-4">
+    <i class="bi bi-info-circle me-1"></i>备份文件存储在服务器的 backups 目录中。建议定期创建备份以防止数据丢失。
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>文件名</th>
+                    <th>大小</th>
+                    <th>创建时间</th>
+                    <th style="width: 160px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for backup in backup_files %}
+                <tr>
+                    <td>
+                        <i class="bi bi-file-earmark-zip me-2" style="color: var(--primary);"></i>{{ backup.filename }}
+                    </td>
+                    <td>{{ backup.size_display }}</td>
+                    <td>{{ backup.modified }}</td>
+                    <td>
+                        <a href="{% url 'download_backup' backup.filename %}" class="btn btn-outline-primary btn-sm" title="下载">
+                            <i class="bi bi-download"></i>
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm delete-backup-btn" data-filename="{{ backup.filename }}" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h5>暂无备份文件</h5>
+                            <p>点击上方"创建备份"按钮创建第一个备份</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteBackupModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除备份文件 <strong id="deleteFileName"></strong> 吗？</p>
+                <p class="text-danger small">此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    var deleteFilename = null;
+
+    $('#createBackupBtn').on('click', function() {
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>备份中...');
+
+        $.ajax({
+            url: '{% url "system_backup" %}',
+            type: 'POST',
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('数据备份创建成功: ' + response.data.filename, 'success');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '备份创建失败', 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-cloud-arrow-up me-1"></i>创建备份');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-cloud-arrow-up me-1"></i>创建备份');
+            }
+        });
+    });
+
+    $('.delete-backup-btn').on('click', function() {
+        deleteFilename = $(this).data('filename');
+        $('#deleteFileName').text(deleteFilename);
+        $('#deleteBackupModal').modal('show');
+    });
+
+    $('#confirmDeleteBtn').on('click', function() {
+        if (!deleteFilename) return;
+
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>删除中...');
+
+        $.ajax({
+            url: '/system/backup/delete/' + deleteFilename + '/',
+            type: 'POST',
+            success: function(response) {
+                if (response.code === 200) {
+                    showToast('备份文件已删除', 'success');
+                    $('#deleteBackupModal').modal('hide');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showToast(response.msg || '删除失败', 'error');
+                    $('#deleteBackupModal').modal('hide');
+                }
+            },
+            error: function(xhr) {
+                var message = '服务器错误';
+                try { var res = JSON.parse(xhr.responseText); message = res.msg || message; } catch(e) {}
+                showToast(message, 'error');
+                $('#deleteBackupModal').modal('hide');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('确认删除');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

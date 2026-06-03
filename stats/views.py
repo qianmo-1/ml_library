@@ -25,11 +25,11 @@ def _json_response(code, msg, data=None):
     payload = {"code": code, "msg": msg}
     if data is not None:
         payload["data"] = data
-    return JsonResponse(payload)
+    return JsonResponse(payload, status=code)
 
 
 def _admin_required(request):
-    if request.user.role != "admin":
+    if request.user.role not in ("admin", "owner"):
         if _is_ajax(request):
             return _json_response(403, "您没有管理员权限")
         messages.error(request, "您没有管理员权限")
@@ -51,19 +51,20 @@ def stats_dashboard_view(request):
 
         today_borrow_count = BorrowRecord.objects.filter(borrow_date__gte=today_start).count()
         today_return_count = BorrowRecord.objects.filter(return_date__gte=today_start).count()
-        today_overdue_count = BorrowRecord.objects.filter(status="overdue").count()
+        today_overdue_count = BorrowRecord.objects.filter(status="overdue", due_date__date=today_start.date()).count()
 
         week_borrow_count = BorrowRecord.objects.filter(borrow_date__gte=week_start).count()
         week_return_count = BorrowRecord.objects.filter(return_date__gte=week_start).count()
-        week_overdue_count = BorrowRecord.objects.filter(status="overdue").count()
+        week_overdue_count = BorrowRecord.objects.filter(status="overdue", due_date__date__gte=week_start.date(), due_date__date__lte=today_start.date()).count()
 
         month_borrow_count = BorrowRecord.objects.filter(borrow_date__gte=month_start).count()
         month_return_count = BorrowRecord.objects.filter(return_date__gte=month_start).count()
-        month_overdue_count = BorrowRecord.objects.filter(status="overdue").count()
+        month_overdue_count = BorrowRecord.objects.filter(status="overdue", due_date__date__gte=month_start.date(), due_date__date__lte=today_start.date()).count()
 
         total_books = Book.objects.filter(is_deleted=False).count()
         total_users = User.objects.count()
         total_borrows = BorrowRecord.objects.count()
+        current_borrows = BorrowRecord.objects.filter(status="borrowing").count()
 
         category_stats = Category.objects.annotate(
             book_count=Count("book", filter=Q(book__is_deleted=False)),
@@ -99,10 +100,13 @@ def stats_dashboard_view(request):
             day_start = today_start - timedelta(days=i)
             day_end = day_start + timedelta(days=1)
             day_label = day_start.strftime("%m-%d")
-            d_cnt = BorrowRecord.objects.filter(
+            b_cnt = BorrowRecord.objects.filter(
                 borrow_date__gte=day_start, borrow_date__lt=day_end
             ).count()
-            daily_trends.append({"label": day_label, "count": d_cnt})
+            r_cnt = BorrowRecord.objects.filter(
+                return_date__gte=day_start, return_date__lt=day_end
+            ).count()
+            daily_trends.append({"label": day_label, "borrow": b_cnt, "return": r_cnt})
 
         borrow_status_stats = [
             {"name": "借阅中", "value": BorrowRecord.objects.filter(status="borrowing").count()},
@@ -120,7 +124,7 @@ def stats_dashboard_view(request):
         ).order_by("-br_count")[:8]
 
         user_borrow_stats = [
-            {"name": u.username, "value": u.br_count}
+            {"name": u.username, "count": u.br_count}
             for u in top_users if u.br_count > 0
         ]
 
@@ -137,6 +141,8 @@ def stats_dashboard_view(request):
             "total_books": total_books,
             "total_users": total_users,
             "total_borrows": total_borrows,
+            "current_borrows": current_borrows,
+            "now": now,
             "category_stats": category_stats,
             "monthly_trends_json": json.dumps(monthly_trends, ensure_ascii=False),
             "daily_trends_json": json.dumps(daily_trends, ensure_ascii=False),
@@ -146,8 +152,8 @@ def stats_dashboard_view(request):
         }
         return render(request, "stats/dashboard.html", context)
 
-    except Exception as e:
-        messages.error(request, f"加载统计面板失败: {str(e)}")
+    except Exception:
+        messages.error(request, "加载统计面板失败，请稍后重试")
         return render(request, "stats/dashboard.html", {
             "today_borrow_count": 0,
             "today_return_count": 0,
@@ -161,6 +167,8 @@ def stats_dashboard_view(request):
             "total_books": 0,
             "total_users": 0,
             "total_borrows": 0,
+            "current_borrows": 0,
+            "now": timezone.now(),
             "category_stats": [],
             "monthly_trends_json": "[]",
             "daily_trends_json": "[]",
@@ -185,7 +193,7 @@ def stats_hot_books_view(request):
         return render(request, "stats/hot_books.html", context)
 
     except Exception as e:
-        messages.error(request, f"加载热门图书失败: {str(e)}")
+        messages.error(request, "加载热门图书失败，请稍后重试")
         return render(request, "stats/hot_books.html", {"hot_books": []})
 
 
@@ -211,7 +219,7 @@ def stats_inventory_view(request):
         return render(request, "stats/inventory.html", context)
 
     except Exception as e:
-        messages.error(request, f"加载库存统计失败: {str(e)}")
+        messages.error(request, "加载库存统计失败，请稍后重试")
         return render(request, "stats/inventory.html", {
             "category_stats": [],
             "out_of_stock_books": [],
@@ -329,7 +337,7 @@ def stats_export_borrows_view(request):
         return response
 
     except Exception as e:
-        messages.error(request, f"导出借阅记录失败: {str(e)}")
+        messages.error(request, "导出借阅记录失败，请稍后重试")
         return redirect("stats_dashboard")
 
 
@@ -388,7 +396,7 @@ def stats_export_books_view(request):
         return response
 
     except Exception as e:
-        messages.error(request, f"导出图书库存失败: {str(e)}")
+        messages.error(request, "导出图书库存失败，请稍后重试")
         return redirect("stats_dashboard")
 
 
@@ -418,7 +426,7 @@ def stats_export_users_view(request):
             bottom=Side(style="thin"),
         )
 
-        role_map = {"user": "普通用户", "admin": "管理员"}
+        role_map = {"reader": "读者", "admin": "管理员", "owner": "拥有者"}
 
         for row_idx, user in enumerate(users, 2):
             row_data = [
@@ -449,5 +457,5 @@ def stats_export_users_view(request):
         return response
 
     except Exception as e:
-        messages.error(request, f"导出用户数据失败: {str(e)}")
+        messages.error(request, "导出用户数据失败，请稍后重试")
         return redirect("stats_dashboard")

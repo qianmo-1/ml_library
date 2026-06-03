@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}库存统计{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="page-title mb-0">库存统计</h4>
+    <a href="{% url 'stats_dashboard' %}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left me-1"></i>返回统计面板
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card primary">
+            <div class="stat-icon"><i class="bi bi-collection"></i></div>
+            <div class="stat-value">{{ total_categories|default:0 }}</div>
+            <div class="stat-label">图书总种类</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card info">
+            <div class="stat-icon"><i class="bi bi-boxes"></i></div>
+            <div class="stat-value">{{ total_stock_sum|default:0 }}</div>
+            <div class="stat-label">总库存量</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card success">
+            <div class="stat-icon"><i class="bi bi-box-arrow-right"></i></div>
+            <div class="stat-value">{{ current_stock_sum|default:0 }}</div>
+            <div class="stat-label">当前可借量</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card danger">
+            <div class="stat-icon"><i class="bi bi-exclamation-diamond"></i></div>
+            <div class="stat-value">{{ out_of_stock_count|default:0 }}</div>
+            <div class="stat-label">缺货图书数</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-pie-chart me-2"></i>分类库存明细
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>分类</th>
+                        <th>图书数</th>
+                        <th>总库存</th>
+                        <th>当前库存</th>
+                        <th>可借率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in category_stats %}
+                    <tr>
+                        <td>{{ cat.name }}</td>
+                        <td>{{ cat.book_count|default:0 }}</td>
+                        <td>{{ cat.total_stock|default:0 }}</td>
+                        <td>{{ cat.current_stock|default:0 }}</td>
+                        <td>
+                            {% if cat.total_stock and cat.total_stock > 0 %}
+                            {% widthratio cat.current_stock cat.total_stock 100 as rate %}
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height: 8px;">
+                                    <div class="progress-bar" role="progressbar" style="width: {{ rate }}%;" aria-valuenow="{{ rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <span class="small fw-bold" style="min-width: 40px;">{{ rate }}%</span>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <h5>暂无分类数据</h5>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-exclamation-diamond me-2"></i>缺货图书列表
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>书名</th>
+                        <th>作者</th>
+                        <th>ISBN</th>
+                        <th>分类</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for book in out_of_stock_books %}
+                    <tr>
+                        <td>{{ book.title }}</td>
+                        <td>{{ book.author }}</td>
+                        <td><code style="font-size: 0.8rem;">{{ book.isbn }}</code></td>
+                        <td>
+                            {% if book.category %}
+                            <span class="badge badge-info">{{ book.category.name }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="bi bi-check-circle" style="color: var(--success) !important;"></i>
+                                <h5>所有图书均有库存</h5>
+                                <p>无缺货情况，库存状态良好</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

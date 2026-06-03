@@ -29,12 +29,17 @@ class BorrowRecord(models.Model):
 
 class OperationLog(models.Model):
     ACTION_CHOICES = (
+        ("login", "登录"),
+        ("logout", "退出登录"),
         ("borrow", "借阅"),
         ("return", "归还"),
         ("renew", "续借"),
         ("create_book", "新增图书"),
         ("edit_book", "编辑图书"),
         ("delete_book", "删除图书"),
+        ("create_category", "新增分类"),
+        ("edit_category", "编辑分类"),
+        ("delete_category", "删除分类"),
         ("create_user", "新增用户"),
         ("edit_user", "编辑用户"),
         ("freeze_user", "冻结用户"),
@@ -73,7 +78,7 @@ class SystemConfig(models.Model):
 class FineRecord(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="用户")
     borrow_record = models.ForeignKey(BorrowRecord, on_delete=models.CASCADE, verbose_name="关联借阅记录")
-    fine_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="罚款金额")
+    fine_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="罚款金额")
     overdue_days = models.IntegerField(default=0, verbose_name="逾期天数")
     is_paid = models.BooleanField(default=False, verbose_name="是否结清")
     paid_at = models.DateTimeField(blank=True, null=True, verbose_name="结清时间")

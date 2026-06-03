@@ -314,6 +314,7 @@ def gen_with_real_content(book, ch_title, chapter_idx, total, info):
         },
         "呐喊": {
             "author": "鲁迅",
+            "characters": ["狂人", "孔乙己", "阿Q", "闰土", "华老栓", "祥林嫂", "单四嫂子"],
             "stories": ["狂人日记", "孔乙己", "药", "明天", "一件小事", "阿Q正传", "故乡", "社戏"],
             "themes": ["封建礼教的吃人本质", "国民性的批判", "知识分子的觉醒与无力"],
         },
@@ -437,7 +438,7 @@ def gen_webnovel(book_title, ch_title, ch_idx, total):
     if not n:
         return None
 
-    ch = random.choice(n["characters"])
+    ch = n["characters"][0] if ch_idx == 0 else random.choice(n["characters"])
     cp = random.choice(n["concepts"])
     loc = random.choice(n["locations"])
 

@@ -12,38 +12,68 @@ from datetime import date
 
 
 def create_users():
+    owner_password = os.environ.get("OWNER_PASSWORD", "")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "")
+    reader_password = os.environ.get("READER_PASSWORD", "")
+    test_password = os.environ.get("TEST_PASSWORD", "")
+
+    if not User.objects.filter(username="owner").exists():
+        if not owner_password:
+            print("[警告] 未设置 OWNER_PASSWORD 环境变量，跳过拥有者创建。")
+            print("  用法: OWNER_PASSWORD=强密码 python init_data.py")
+        else:
+            User.objects.create_superuser(
+                username="owner",
+                password=owner_password,
+                phone="13800000000",
+                role="owner",
+                email="owner@library.com",
+            )
+            print("拥有者账号已创建: owner")
+
     if not User.objects.filter(username="admin").exists():
-        User.objects.create_superuser(
-            username="admin",
-            password="admin123",
-            phone="13800000001",
-            role="admin",
-            email="admin@library.com",
-        )
-        print("管理员账号已创建: admin / admin123")
+        if not admin_password:
+            print("[警告] 未设置 ADMIN_PASSWORD 环境变量，跳过管理员创建。")
+        else:
+            User.objects.create_user(
+                username="admin",
+                password=admin_password,
+                phone="13800000001",
+                student_id="A2024001",
+                role="admin",
+                email="admin@library.com",
+                is_staff=True,
+            )
+            print("管理员账号已创建: admin")
 
     if not User.objects.filter(username="reader").exists():
-        User.objects.create_user(
-            username="reader",
-            password="reader123",
-            phone="13800000002",
-            student_id="S2024001",
-            role="user",
-            email="reader@library.com",
-        )
-        print("读者账号已创建: reader / reader123")
-
-    for i in range(2, 6):
-        uname = f"reader{i}"
-        if not User.objects.filter(username=uname).exists():
+        if not reader_password:
+            print("[警告] 未设置 READER_PASSWORD 环境变量，跳过读者账号创建。")
+        else:
             User.objects.create_user(
-                username=uname,
-                password="reader123",
-                phone=f"1380000000{i+1}",
-                student_id=f"S202400{i}",
-                role="user",
+                username="reader",
+                password=reader_password,
+                phone="13800000002",
+                student_id="S2024001",
+                role="reader",
+                email="reader@library.com",
             )
-    print("已创建测试读者账号 reader2~reader5，密码均为 reader123")
+            print("读者账号已创建: reader")
+
+    if test_password:
+        for i in range(2, 6):
+            uname = f"reader{i}"
+            if not User.objects.filter(username=uname).exists():
+                User.objects.create_user(
+                    username=uname,
+                    password=test_password,
+                    phone=f"1380000000{i+1}",
+                    student_id=f"S202400{i}",
+                    role="reader",
+                )
+        print("已创建测试读者账号 reader2~reader5")
+    else:
+        print("[提示] 未设置 TEST_PASSWORD，跳过测试账号创建。")
 
 
 def create_categories():
@@ -261,6 +291,5 @@ if __name__ == "__main__":
     init_system_config()
     print("=" * 50)
     print("初始化完成!")
-    print("管理员账号: admin / admin123")
-    print("读者账号: reader / reader123")
+    print("账号已创建 (如已设置环境变量)")
     print("=" * 50)
